@@ -1,4 +1,4 @@
-import User from "../models/User.js";
+import Admin from "../models/model.admin.js";
 import jwt from "jsonwebtoken";
 
 export const protectRoute = async (req, res, next) => {
@@ -6,11 +6,11 @@ export const protectRoute = async (req, res, next) => {
     const token = req.headers.token;
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select("-password");
+    const admin = await Admin.findById(decoded.userId).select("-password");
 
-    if (!user) return res.json({ success: false, message: "user not found" });
+    if (!admin) return res.json({ success: false, message: "admin not found" });
 
-    req.user = user;
+    req.admin = admin;
     next();
   } catch (error) {
     console.log(error.message);

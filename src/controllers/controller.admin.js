@@ -99,3 +99,28 @@ export const adminLogin = async (req, res) => {
 export const checkAuth = (req, res) => {
   res.json({ success: true, admin: req.admin });
 };
+
+// Logout admin
+export const adminLogout = async (req, res) => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production" ? true : false,
+      sameSite: "strict",
+    });
+
+    res.json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.log(error.message);
+    if (error instanceof ApiError) {
+      res
+        .status(error.statusCode)
+        .json({ success: false, message: error.message });
+    } else {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }
+};
