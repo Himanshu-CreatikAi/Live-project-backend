@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 let confollowAddchema = new mongoose.Schema(
   {
+    contact: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Contact",
+      required: true,
+    },
     StartDate: {
       type: String,
       default: "",

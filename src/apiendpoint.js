@@ -42,7 +42,7 @@
 
  */
 
-//for contact follow up add http://localhost:5001/api/cus/follow/add
+//for contact follow up add http://localhost:5001/api/con/follow/add
 
 /* testing data
 {
@@ -208,3 +208,36 @@
  */
 
 // for checkadmin  http://localhost:5001/api/admin/check
+
+// getting total followup of a specific customer
+
+//http://localhost:5001/api/cus/followup/customer/68fb2589235887cd91dadc61
+
+// for posting followup of a specific  customer
+//http://localhost:5001/api/cus/followup/68fb2589235887cd91dadc61
+
+// for getting followup of a all  customer
+// // http://localhost:5001/api/cus/followup
+
+// for customer
+//http://localhost:5001/api/customer
+
+// for sending whatsapp message
+//http://localhost:5001/api/v1/messages/whatsapp
+
+//for sending email
+//http://localhost:5001/api/v1/messages/email
+
+//for creating whats app and email template
+//http://localhost:5001/api/v1/templates
+
+// for making calls
+///http://localhost:5001/api/v1/calls/make
+
+//for getting contact follow up by id http://localhost:5001/api/con/follow/add/contact/68ff8fbd8b434d325b844417
+
+// for posting updating and deleting a follow up for a contact http://localhost:5001/api/con/follow/add/68ff8fbd8b434d325b844417
+
+// for getting all and deleting all contact follow up data http://localhost:5001/api/con/follow/add
+
+// for getting fav customers http://localhost:5001/api/favourites

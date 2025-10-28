@@ -2,8 +2,9 @@ import express from "express";
 import {
   createConFollowAdd,
   deleteConFollowAdd,
+  deleteAllConFollowAdd,
   getConFollowAdd,
-  getConFollowAddById,
+  getConFollowAddByContact,
   updateConFollowAdd,
 } from "../controllers/controller.confollowadd.js";
 
@@ -16,17 +17,23 @@ import {
 const confollowaddRoutes = express.Router();
 
 confollowaddRoutes.get("/", getConFollowAdd);
-confollowaddRoutes.get("/:id", getConFollowAddById);
+
+confollowaddRoutes.get("/contact/:contactId", getConFollowAddByContact);
+
 confollowaddRoutes.post(
-  "/",
+  "/:contactId",
   validate(createConFollowAddValidator),
   createConFollowAdd
 );
+
 confollowaddRoutes.put(
   "/:id",
   validate(updateConFollowAddValidator),
   updateConFollowAdd
 );
+
 confollowaddRoutes.delete("/:id", deleteConFollowAdd);
+
+confollowaddRoutes.delete("/", deleteAllConFollowAdd);
 
 export default confollowaddRoutes;

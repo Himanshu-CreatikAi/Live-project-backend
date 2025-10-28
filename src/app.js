@@ -16,6 +16,11 @@ import scheduleRoutes from "./routes/route.schedule.js";
 import taskRoutes from "./routes/route.task.js";
 import userRoutes from "./routes/routes.user.js";
 import adminRoutes from "./routes/routes.admin.js";
+import customerRoutes from "./routes/route.customer.js";
+import followupRoutes from "./routes/route.cusfollowup.js";
+import messageRoutes from "./routes/route.messages.js";
+import callRoutes from "./routes/route.calls.js";
+import templateRoute from "./routes/route.template.js";
 
 const app = express();
 app.use(cookieParser());
@@ -33,6 +38,12 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use("/api/customer", customerRoutes);
+app.use("/api/favourites", customerRoutes);
+app.use("/api/cus/followup", followupRoutes);
+app.use("/api/v1/templates", templateRoute);
+app.use("/api/v1/messages", messageRoutes);
+app.use("/api/v1/calls", callRoutes);
 app.use("/api/con/followup", confollowupRoutes);
 app.use("/api/con/follow/search", confollowsearchRoutes);
 app.use("/api/con/follow/add", confollowaddRoutes);
