@@ -241,3 +241,42 @@
 // for getting all and deleting all contact follow up data http://localhost:5001/api/con/follow/add
 
 // for getting fav customers http://localhost:5001/api/favourites
+
+// for adminlogin  http://localhost:5001/api/admin/login
+
+// for adminsignup  http://localhost:5001/api/admin/signup
+
+/**
+ * {
+  "name": "admin",
+  "email": "admin@example.com",
+  "password": "Test@123",
+  "role": "administrator",
+  "city": "Mumbai",  
+  "phone": "+911234567890"  
+}
+ */
+
+// for checkadmin  http://localhost:5001/api/admin/check
+
+// for admin update http://localhost:5001/api/admin/6901ea26ef3c6fa233c93d88/details
+
+// for create a new user , city admin or adminstrator  http://localhost:5001/api/admin/create
+
+/**
+ * {
+      "AddressLine1": "malviya nagar",
+      "AddressLine2": "jaipur",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "user",
+      "city": "Mumbai",
+      "phone": "1234567975",
+      "status": "active",
+      "password": "Test@123"
+    }
+ */
+
+// for updating password of admins     api/admin/:id/password
+
+// for getting all admin data http://localhost:5001/api/admin/all
