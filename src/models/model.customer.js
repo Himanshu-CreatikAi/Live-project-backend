@@ -33,6 +33,11 @@ const customerSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    AssignTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
   },
   { timestamps: true }
 );

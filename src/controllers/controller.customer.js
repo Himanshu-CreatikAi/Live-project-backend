@@ -1,17 +1,29 @@
 import cloudinary from "../config/cloudinary.js";
 import Customer from "../models/model.customer.js";
+import Admin from "../models/model.admin.js";
 import ApiError from "../utils/ApiError.js";
 import fs from "fs";
 
+// ✅ GET CUSTOMERS (Role-based + Filter)
 export const getCustomer = async (req, res, next) => {
   try {
+    const admin = req.admin;
+    const filter = {};
+
+    // 🧩 Role-based filtering
+    if (admin.role === "city_admin") {
+      filter.City = admin.city;
+    } else if (admin.role === "user") {
+      filter.AssignTo = admin._id;
+    }
+
+    // 🧠 Query-based filters
     const {
       Campaign,
       PropertyType,
       StatusType,
       City,
       Location,
-      User,
       Keyword,
       StartDate,
       EndDate,
@@ -19,32 +31,13 @@ export const getCustomer = async (req, res, next) => {
       sort,
     } = req.query;
 
-    const filter = {};
-
-    if (Campaign) {
-      filter.Campaign = { $regex: Campaign.trim(), $options: "i" };
-    }
-
-    if (PropertyType) {
+    if (Campaign) filter.Campaign = { $regex: Campaign.trim(), $options: "i" };
+    if (PropertyType)
       filter.CustomerSubType = { $regex: PropertyType.trim(), $options: "i" };
-    }
-
-    if (StatusType) {
+    if (StatusType)
       filter.Verified = { $regex: StatusType.trim(), $options: "i" };
-    }
-
-    if (City) {
-      filter.City = { $regex: City.trim(), $options: "i" };
-    }
-
-    if (Location) {
-      filter.Location = { $regex: Location.trim(), $options: "i" };
-    }
-
-    if (User) {
-      filter.ReferenceId = { $regex: User.trim(), $options: "i" };
-    }
-
+    if (City) filter.City = { $regex: City.trim(), $options: "i" };
+    if (Location) filter.Location = { $regex: Location.trim(), $options: "i" };
     if (Keyword) {
       filter.$or = [
         { customerName: { $regex: Keyword.trim(), $options: "i" } },
@@ -53,58 +46,135 @@ export const getCustomer = async (req, res, next) => {
         { Other: { $regex: Keyword.trim(), $options: "i" } },
       ];
     }
-
     if (StartDate && EndDate) {
-      filter.createdAt = {
-        $gte: new Date(StartDate),
-        $lte: new Date(EndDate),
-      };
-    } else if (StartDate) {
-      filter.createdAt = { $gte: new Date(StartDate) };
-    } else if (EndDate) {
-      filter.createdAt = { $lte: new Date(EndDate) };
+      filter.createdAt = { $gte: new Date(StartDate), $lte: new Date(EndDate) };
     }
 
-    let sortOrder = -1;
+    // Sorting
     let sortField = "createdAt";
+    let sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
 
-    if (sort) {
-      if (sort.toLowerCase() === "asc") {
-        sortOrder = 1;
-      } else if (sort.toLowerCase() === "desc") {
-        sortOrder = -1;
-      }
-      sortField = "customerName";
-    }
+    let query = Customer.find(filter)
+      .populate("AssignTo", "name email role city")
+      .sort({ [sortField]: sortOrder });
 
-    let query = Customer.find(filter).sort({ [sortField]: sortOrder });
+    if (Limit) query = query.limit(Number(Limit));
 
-    if (Limit) {
-      query = query.limit(Number(Limit));
-    }
-
-    const customer = await query;
-    res.status(200).json(customer);
+    const customers = await query;
+    res.status(200).json(customers);
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
+// ✅ ASSIGN OR REASSIGN CUSTOMER
+export const assignCustomer = async (req, res, next) => {
+  try {
+    const { customerId, assignToId } = req.body;
+    const admin = req.admin;
+
+    if (!customerId || !assignToId)
+      return next(new ApiError(400, "customerId and assignToId are required"));
+
+    const customer = await Customer.findById(customerId);
+    if (!customer) return next(new ApiError(404, "Customer not found"));
+
+    const assignToAdmin = await Admin.findById(assignToId);
+    if (!assignToAdmin) return next(new ApiError(404, "Admin/User not found"));
+
+    // 🧩 Role-based restriction
+    if (admin.role === "city_admin") {
+      if (customer.City !== admin.city)
+        return next(
+          new ApiError(403, "You can only assign customers in your city")
+        );
+      if (assignToAdmin.city !== admin.city)
+        return next(
+          new ApiError(403, "You can only assign to users in your city")
+        );
+    } else if (admin.role === "user") {
+      return next(
+        new ApiError(403, "Users are not allowed to assign customers")
+      );
+    }
+
+    customer.AssignTo = assignToId;
+    await customer.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Customer assigned successfully",
+      data: customer,
+    });
+  } catch (error) {
+    next(new ApiError(500, error.message));
+  }
+};
+
+// ✅ BULK ASSIGN CITY CUSTOMERS (City Admin only)
+export const bulkAssignCityCustomers = async (req, res, next) => {
+  try {
+    const admin = req.admin;
+    const { assignToId } = req.body;
+
+    if (admin.role !== "city_admin")
+      return next(
+        new ApiError(403, "Only City Admin can assign all city customers")
+      );
+
+    const targetAdmin = await Admin.findById(assignToId);
+    if (!targetAdmin)
+      return next(new ApiError(404, "Target user/admin not found"));
+
+    if (targetAdmin.city !== admin.city)
+      return next(
+        new ApiError(403, "You can only assign to users in your city")
+      );
+
+    const result = await Customer.updateMany(
+      { City: admin.city },
+      { AssignTo: assignToId }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Assigned ${result.modifiedCount} customers to ${targetAdmin.name}`,
+    });
+  } catch (error) {
+    next(new ApiError(500, error.message));
+  }
+};
+
+// ✅ GET SINGLE CUSTOMER (Role-based)
 export const getCustomerById = async (req, res, next) => {
   try {
-    const customer = await Customer.findById(req.params.id);
-    if (!customer) {
-      return next(new ApiError(404, "Customer not found"));
-    }
+    const admin = req.admin;
+    const customer = await Customer.findById(req.params.id).populate(
+      "AssignTo",
+      "name email role city"
+    );
+
+    if (!customer) return next(new ApiError(404, "Customer not found"));
+
+    if (
+      admin.role === "user" &&
+      customer.AssignTo?.toString() !== admin._id.toString()
+    )
+      return next(new ApiError(403, "Access denied"));
+
+    if (admin.role === "city_admin" && customer.City !== admin.city)
+      return next(new ApiError(403, "Access denied"));
+
     res.status(200).json(customer);
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
-// ✅ Create Customer Followup
+// ✅ CREATE CUSTOMER
 export const createCustomer = async (req, res, next) => {
   try {
+    const admin = req.admin;
     const {
       Campaign,
       CustomerType,
@@ -131,7 +201,7 @@ export const createCustomer = async (req, res, next) => {
     let CustomerImage = [];
     let SitePlan = [];
 
-    // ✅ Upload CustomerImage files to Cloudinary
+    // Uploads
     if (req.files?.CustomerImage) {
       for (const file of req.files.CustomerImage) {
         const upload = await cloudinary.uploader.upload(file.path, {
@@ -139,13 +209,10 @@ export const createCustomer = async (req, res, next) => {
           transformation: [{ width: 1000, crop: "limit" }],
         });
         CustomerImage.push(upload.secure_url);
-        fs.unlink(file.path, (err) => {
-          if (err) console.error("Error deleting temp file:", err);
-        });
+        fs.unlink(file.path, () => {});
       }
     }
 
-    // ✅ Upload SitePlan files to Cloudinary
     if (req.files?.SitePlan) {
       for (const file of req.files.SitePlan) {
         const upload = await cloudinary.uploader.upload(file.path, {
@@ -153,9 +220,7 @@ export const createCustomer = async (req, res, next) => {
           transformation: [{ width: 1000, crop: "limit" }],
         });
         SitePlan.push(upload.secure_url);
-        fs.unlink(file.path, (err) => {
-          if (err) console.error("Error deleting temp file:", err);
-        });
+        fs.unlink(file.path, () => {});
       }
     }
 
@@ -182,15 +247,16 @@ export const createCustomer = async (req, res, next) => {
       GoogleMap,
       CustomerImage,
       SitePlan,
+      AssignTo: admin.role === "user" ? admin._id : null,
     });
 
     res.status(201).json({ success: true, data: newCustomer });
   } catch (error) {
-    console.error("Create error:", error);
     next(new ApiError(500, error.message));
   }
 };
 
+// ✅ Helper for Cloudinary cleanup
 const getPublicIdFromUrl = (url) => {
   try {
     const parts = url.split("/");
@@ -201,132 +267,156 @@ const getPublicIdFromUrl = (url) => {
   }
 };
 
-// ✅ Update Customer Followup
+// ✅ UPDATE CUSTOMER (Role-based)
+// ✅ UPDATE CUSTOMER (Role-based + Image Deletion Support)
 export const updateCustomer = async (req, res, next) => {
   try {
+    const admin = req.admin;
     const { id } = req.params;
-
     let updateData = { ...req.body };
 
-    // Avoid empty email value
-    if (updateData.Email === "") {
-      updateData.Email = undefined;
-    }
-
-    // ✅ Find existing document to delete old images if replaced
-    const existingCustomer = await Customer.findById(id);
-    if (!existingCustomer) {
-      return next(new ApiError(404, "Customer not found"));
-    }
-
-    let CustomerImage = [];
-    let SitePlan = [];
-
-    // ✅ Upload new CustomerImage files to Cloudinary
-    if (req.files?.CustomerImage) {
-      // Delete old CustomerImage files from Cloudinary
-      if (existingCustomer.CustomerImage?.length) {
-        for (const oldUrl of existingCustomer.CustomerImage) {
-          const publicId = getPublicIdFromUrl(oldUrl);
-          if (publicId) {
-            await cloudinary.uploader.destroy(
-              `customer/customer_images/${publicId}`
-            );
-          }
-        }
+    // Parse removedImages if coming as JSON string (from FormData)
+    if (typeof updateData.removedImages === "string") {
+      try {
+        updateData.removedImages = JSON.parse(updateData.removedImages);
+      } catch {
+        updateData.removedImages = [];
       }
+    }
 
-      // Upload new images
+    if (updateData.Email === "") updateData.Email = undefined;
+
+    const existingCustomer = await Customer.findById(id);
+    if (!existingCustomer) return next(new ApiError(404, "Customer not found"));
+
+    // 🧩 Role restrictions
+    if (
+      admin.role === "user" &&
+      existingCustomer.AssignTo?.toString() !== admin._id.toString()
+    )
+      return next(new ApiError(403, "You can only update your own customers"));
+    if (admin.role === "city_admin" && existingCustomer.City !== admin.city)
+      return next(
+        new ApiError(403, "You can only update customers in your city")
+      );
+
+    let CustomerImage = [...existingCustomer.CustomerImage];
+    let SitePlan = [...existingCustomer.SitePlan];
+
+    // 🗑️ 1️⃣ Delete removed images from Cloudinary + DB
+    if (updateData.removedImages && Array.isArray(updateData.removedImages)) {
+      for (const url of updateData.removedImages) {
+        const publicId = getPublicIdFromUrl(url);
+        if (publicId) {
+          await cloudinary.uploader.destroy(
+            `customer/customer_images/${publicId}`
+          );
+        }
+        // Remove from existing array
+        CustomerImage = CustomerImage.filter((img) => img !== url);
+      }
+    }
+
+    // 🖼️ 2️⃣ Upload new Customer Images
+    if (req.files?.CustomerImage) {
       for (const file of req.files.CustomerImage) {
         const upload = await cloudinary.uploader.upload(file.path, {
           folder: "customer/customer_images",
           transformation: [{ width: 1000, crop: "limit" }],
         });
         CustomerImage.push(upload.secure_url);
-        fs.unlink(
-          file.path,
-          (err) => err && console.error("Error deleting temp file:", err)
-        );
+        fs.unlink(file.path, () => {});
       }
-
-      updateData.CustomerImage = CustomerImage;
     }
 
-    // ✅ Upload new SitePlan files to Cloudinary
+    // 📐 3️⃣ Upload new Site Plans
     if (req.files?.SitePlan) {
-      // Delete old SitePlan files from Cloudinary
-      if (existingCustomer.SitePlan?.length) {
-        for (const oldUrl of existingCustomer.SitePlan) {
-          const publicId = getPublicIdFromUrl(oldUrl);
-          if (publicId) {
-            await cloudinary.uploader.destroy(
-              `customer/site_plans/${publicId}`
-            );
-          }
-        }
+      for (const oldUrl of existingCustomer.SitePlan) {
+        const publicId = getPublicIdFromUrl(oldUrl);
+        if (publicId)
+          await cloudinary.uploader.destroy(`customer/site_plans/${publicId}`);
       }
-
-      // Upload new ones
+      SitePlan = [];
       for (const file of req.files.SitePlan) {
         const upload = await cloudinary.uploader.upload(file.path, {
           folder: "customer/site_plans",
           transformation: [{ width: 1000, crop: "limit" }],
         });
         SitePlan.push(upload.secure_url);
-        fs.unlink(
-          file.path,
-          (err) => err && console.error("Error deleting temp file:", err)
-        );
+        fs.unlink(file.path, () => {});
       }
-
-      updateData.SitePlan = SitePlan;
     }
 
-    // ✅ Update in MongoDB
+    // 🧾 4️⃣ Final update object
+    updateData.CustomerImage = CustomerImage;
+    updateData.SitePlan = SitePlan;
+
+    // 🧠 5️⃣ Update customer record
     const updatedCustomer = await Customer.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
     });
 
-    res.status(200).json({ success: true, data: updatedCustomer });
+    res.status(200).json({
+      success: true,
+      message: "Customer updated successfully",
+      data: updatedCustomer,
+    });
   } catch (error) {
-    console.error("Update error:", error);
     next(new ApiError(500, error.message));
   }
 };
-// delete by id
+
+// ✅ DELETE CUSTOMER (Role-based)
 export const deleteCustomer = async (req, res, next) => {
   try {
-    const deletedCustomer = await Customer.findByIdAndDelete(req.params.id);
-    if (!deletedCustomer) {
-      return next(new ApiError(404, "Customer not found"));
-    }
+    const admin = req.admin;
+    const customer = await Customer.findById(req.params.id);
+    if (!customer) return next(new ApiError(404, "Customer not found"));
+
+    if (
+      admin.role === "user" &&
+      customer.AssignTo?.toString() !== admin._id.toString()
+    )
+      return next(new ApiError(403, "You can only delete your own customers"));
+    if (admin.role === "city_admin" && customer.City !== admin.city)
+      return next(
+        new ApiError(403, "You can only delete customers in your city")
+      );
+
+    await customer.deleteOne();
     res.status(200).json({ message: "Customer deleted successfully" });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
-// delete all customer
-
+// ✅ DELETE ALL CUSTOMERS (Administrator only)
 export const deleteAllCustomers = async (req, res, next) => {
   try {
+    const admin = req.admin;
+    if (admin.role !== "administrator")
+      return next(
+        new ApiError(403, "Only administrator can delete all customers")
+      );
+
     const result = await Customer.deleteMany({});
-    if (result.deletedCount === 0) {
-      return next(new ApiError(404, "No customers found to delete"));
-    }
     res.status(200).json({ message: "All customers deleted successfully" });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
-// ✅ Get All Favourite Customers
+// ✅ GET FAVOURITE CUSTOMERS (Role-based)
 export const getFavouriteCustomers = async (req, res, next) => {
   try {
-    const favourites = await Customer.find({ isFavourite: true }).sort({
-      createdAt: -1,
-    });
+    const admin = req.admin;
+    const filter = { isFavourite: true };
+
+    if (admin.role === "city_admin") filter.City = admin.city;
+    else if (admin.role === "user") filter.AssignTo = admin._id;
+
+    const favourites = await Customer.find(filter).sort({ createdAt: -1 });
     res.status(200).json({
       success: true,
       count: favourites.length,
