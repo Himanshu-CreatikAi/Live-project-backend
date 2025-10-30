@@ -222,6 +222,13 @@
   "Status": "Active"
 }
  */
+
+// for masters whatsapp http://localhost:5001/api/mas/whatsapp
+/*{
+  "Name": "templat1",
+  "Status": "Active"
+}
+ */
 // for masters type http://localhost:5001/api/mas/type
 
 /*{

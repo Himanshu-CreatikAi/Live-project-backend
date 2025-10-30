@@ -32,6 +32,7 @@ import statustypeRoutes from "./routes/route.statustype.js";
 import paymentRoutes from "./routes/route.payments.js";
 import smsRoutes from "./routes/route.sms.js";
 import mailRoutes from "./routes/route.mail.js";
+import whatsappRoutes from "./routes/route.whatsapp.js";
 
 const app = express();
 app.use(cookieParser());
@@ -79,6 +80,7 @@ app.use("/api/mas/statustype", statustypeRoutes);
 app.use("/api/mas/payments", paymentRoutes);
 app.use("/api/mas/sms", smsRoutes);
 app.use("/api/mas/mail", mailRoutes);
+app.use("/api/mas/whatsapp", whatsappRoutes);
 // Error handler
 app.use(errorHandler);
 
