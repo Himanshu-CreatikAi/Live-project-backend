@@ -216,6 +216,12 @@
   "Status": "Active"
 }
  */
+// for masters mail http://localhost:5001/api/mas/mail
+/*{
+  "Name": "pravesh mail",
+  "Status": "Active"
+}
+ */
 // for masters type http://localhost:5001/api/mas/type
 
 /*{

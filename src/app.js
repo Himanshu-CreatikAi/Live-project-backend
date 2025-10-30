@@ -31,6 +31,7 @@ import incomeRoutes from "./routes/route.income.js";
 import statustypeRoutes from "./routes/route.statustype.js";
 import paymentRoutes from "./routes/route.payments.js";
 import smsRoutes from "./routes/route.sms.js";
+import mailRoutes from "./routes/route.mail.js";
 
 const app = express();
 app.use(cookieParser());
@@ -77,6 +78,7 @@ app.use("/api/mas/inc", incomeRoutes);
 app.use("/api/mas/statustype", statustypeRoutes);
 app.use("/api/mas/payments", paymentRoutes);
 app.use("/api/mas/sms", smsRoutes);
+app.use("/api/mas/mail", mailRoutes);
 // Error handler
 app.use(errorHandler);
 
