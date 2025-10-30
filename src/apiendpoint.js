@@ -126,7 +126,96 @@
 }
 
  */
+//for masters city http://localhost:5001/api/mas/city
+//{
+//  "Name": "Summer Sales Campaign",
+//  "Status": "Inactive"
+//}
+ 
 
+//for masters location http://localhost:5001/api/mas/loc
+//{
+//  "Name": "Summer Sales Campaign",
+//  "Status": "Inactive",
+// "City": "Mumbai"
+//}
+
+//for masters facilities http://localhost:5001/api/mas/fac
+//{
+//  "Name": "Summer Sales Campaign",
+//  "Status": "Inactive",
+//}
+
+//for masters amenities http://localhost:5001/api/mas/amen
+//{
+//  
+//}
+//for masters industries http://localhost:5001/api/mas/ind
+//{
+//  "Name": "tech ",
+//  "Status": "Inactive",
+//}
+
+//for masters role http://localhost:5001/api/mas/role
+// {
+//  "Role": "admin",
+//  "Slug": "administrator",
+//  "Status": "Inactive",
+// }
+
+//for masters contactcampaign http://localhost:5001/api/mas/contactcampaign
+// {
+//  "Name": "ig ",
+//  "Status": "Inactive",
+// }
+
+//for masters contacttype http://localhost:5001/api/mas/contacttype
+// {
+
+//  "Name": "rohit ",
+//  "Status": "Active",
+// }
+
+//for masters references http://localhost:5001/api/mas/ref
+// {
+
+//  "Name": "pd ",
+//  "Status": "Inactive",
+// }
+
+//for masters expenses http://localhost:5001/api/mas/exp
+// {
+
+//  "Name": "travel ",
+//  "Status": "Inactive",
+// }
+
+//for masters income http://localhost:5001/api/mas/inc
+// {
+
+//  "Name": "yt",
+//  "Status": "Inactive",
+// }
+
+//for masters statustype http://localhost:5001/api/mas/statustype
+// {
+
+//  "Name": "following up",
+//  "Status": "Inactive",
+// }
+
+// for masters payments http://localhost:5001/api/mas/payments
+/*{
+  "Name": "Initial Deposit",
+  "Status": "Active"
+}
+ */
+// for masters sms http://localhost:5001/api/mas/sms
+/*{
+  "Name": "pravesh SMS",
+  "Status": "Active"
+}
+ */
 // for masters type http://localhost:5001/api/mas/type
 
 /*{
