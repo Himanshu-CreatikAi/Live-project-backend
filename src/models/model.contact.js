@@ -78,9 +78,14 @@ let contactschema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    isFavourite: {
+      type: Boolean,
+      default: false,
+    },
     AssignTo: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
     },
   },
   { timestamps: true }

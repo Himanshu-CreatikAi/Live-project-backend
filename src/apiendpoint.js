@@ -222,6 +222,23 @@
 // for customer
 //http://localhost:5001/api/customer
 
+// for assigning customers http://localhost:5001/api/customer/assign
+/**
+ * {
+  "customerId": "690376c664cfec49371ad0b2",
+  "assignToId": "6902f0d10d6a8ecb146ecc10" 
+}
+
+ */
+// for bulk assigning customers by city admin http://localhost:5001/api/customer/assign-all-city
+/**
+ * {
+  "City": "Jaipur",
+  "assignToId": "6902f0d10d6a8ecb146ecc10" 
+}
+
+ */
+
 // for sending whatsapp message
 //http://localhost:5001/api/v1/messages/whatsapp
 
@@ -239,6 +256,23 @@
 // for posting updating and deleting a follow up for a contact http://localhost:5001/api/con/follow/add/68ff8fbd8b434d325b844417
 
 // for getting all and deleting all contact follow up data http://localhost:5001/api/con/follow/add
+
+// for contact http://localhost:5000/api/contact
+
+// for assigning contacts http://localhost:5001/api/contact/assign
+/**
+ * {
+  "contactId": "690376c664cfec49371ad0b2",
+  "assignToId": "6902f0d10d6a8ecb146ecc10" 
+}
+
+ */
+
+//for bulk assigning by city admin http://localhost:5001/api/contact/bulk-assign
+//{
+//  "City": "Jaipur",
+//  "assignToId": "6902f0d10d6a8ecb146ecc10"
+//}
 
 // for getting fav customers http://localhost:5001/api/favourites
 
@@ -280,3 +314,7 @@
 // for updating password of admins     api/admin/:id/password
 
 // for getting all admin data http://localhost:5001/api/admin/all
+
+// for contact http://localhost:5000/api/contact
+
+// for assign
