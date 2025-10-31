@@ -318,3 +318,134 @@
 // for contact http://localhost:5000/api/contact
 
 // for assign
+
+// for masters campaign http://localhost:5001/api/mas/cam
+
+/*
+{
+  "Name": "Summer Sales Campaign",
+  "Status": "Active"
+}
+
+ */
+//for masters city http://localhost:5001/api/mas/city
+//{
+//  "Name": "Summer Sales Campaign",
+//  "Status": "Inactive"
+//}
+
+//for masters location http://localhost:5001/api/mas/loc
+//{
+//  "Name": "Summer Sales Campaign",
+//  "Status": "Inactive",
+// "City": "Mumbai"
+//}
+
+//for masters facilities http://localhost:5001/api/mas/fac
+//{
+//  "Name": "Summer Sales Campaign",
+//  "Status": "Inactive",
+//}
+
+//for masters amenities http://localhost:5001/api/mas/amen
+//{
+//
+//}
+//for masters industries http://localhost:5001/api/mas/ind
+//{
+//  "Name": "tech ",
+//  "Status": "Inactive",
+//}
+
+//for masters role http://localhost:5001/api/mas/role
+// {
+//  "Role": "admin",
+//  "Slug": "administrator",
+//  "Status": "Inactive",
+// }
+
+//for masters contactcampaign http://localhost:5001/api/mas/contactcampaign
+// {
+//  "Name": "ig ",
+//  "Status": "Inactive",
+// }
+
+//for masters contacttype http://localhost:5001/api/mas/contacttype
+// {
+
+//  "Name": "rohit ",
+//  "Status": "Active",
+// }
+
+//for masters references http://localhost:5001/api/mas/ref
+// {
+
+//  "Name": "pd ",
+//  "Status": "Inactive",
+// }
+
+//for masters expenses http://localhost:5001/api/mas/exp
+// {
+
+//  "Name": "travel ",
+//  "Status": "Inactive",
+// }
+
+//for masters income http://localhost:5001/api/mas/inc
+// {
+
+//  "Name": "yt",
+//  "Status": "Inactive",
+// }
+
+//for masters statustype http://localhost:5001/api/mas/statustype
+// {
+
+//  "Name": "following up",
+//  "Status": "Inactive",
+// }
+
+// for masters payments http://localhost:5001/api/mas/payments
+/*{
+  "Name": "Initial Deposit",
+  "Status": "Active"
+}
+ */
+// for masters sms http://localhost:5001/api/mas/sms
+/*{
+  "Name": "pravesh SMS",
+  "Status": "Active"
+}
+ */
+// for masters mail http://localhost:5001/api/mas/mail
+/*{
+  "Name": "pravesh mail",
+  "Status": "Active"
+}
+ */
+
+// for masters whatsapp http://localhost:5001/api/mas/whatsapp
+/*{
+  "Name": "templat1",
+  "Status": "Active"
+}
+ */
+// for masters type http://localhost:5001/api/mas/type
+
+/*{
+  "Campaign": "Real Estate 2025",
+  "Name": "3BHK",
+  "Status": "Active"
+}
+ */
+
+// for masters customer sub type http://localhost:5001/api/mas/sub
+
+/*{
+  "Campaign": "Marketing 2025",
+  "CustomerType": "Normal",
+  "Name": "Lead SubCategory",
+  "Status": "Active"
+}
+
+ */
