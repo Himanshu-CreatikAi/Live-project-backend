@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 
 const customerSchema = new mongoose.Schema(
   {
-    Campaign: { type: String, required: true },
+    Campaign: { type: String, default: "" },
     CustomerType: { type: String, default: "" },
-    customerName: { type: String, required: true },
     CustomerSubType: { type: String, default: "" },
+    customerName: { type: String, required: true },
     ContactNumber: { type: String, required: true, unique: true },
     City: { type: String, default: "" },
     Location: { type: String, default: "" },
@@ -29,15 +29,18 @@ const customerSchema = new mongoose.Schema(
     GoogleMap: { type: String, default: "" },
     CustomerImage: { type: [String], default: [] },
     SitePlan: { type: [String], default: [] },
-    isFavourite: {
-      type: Boolean,
-      default: false,
-    },
+    isFavourite: { type: Boolean, default: false },
     AssignTo: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
       default: null,
     },
+    CreatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+    isImported: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -17,7 +17,9 @@ import {
   createCustomerValidator,
   updateCustomerValidator,
 } from "../validators/customerValidator.js";
-import { protectRoute } from "../middlewares/auth.js";
+import { isCityAdminOrAbove, protectRoute } from "../middlewares/auth.js";
+import { uploadExcel } from "../middlewares/uploadExcel.js";
+import { importCustomers } from "../controllers/customerImportController.js";
 
 const customerRoutes = express.Router();
 
@@ -55,5 +57,12 @@ customerRoutes.delete("/:id", deleteCustomer);
 customerRoutes.delete("/", deleteAllCustomers);
 
 customerRoutes.get("/favourites/all", getFavouriteCustomers);
+customerRoutes.post(
+  "/import",
+  protectRoute,
+  isCityAdminOrAbove,
+  uploadExcel.single("file"),
+  importCustomers
+);
 
 export default customerRoutes;

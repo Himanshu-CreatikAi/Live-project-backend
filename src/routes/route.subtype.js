@@ -13,8 +13,12 @@ import {
   createSubTypeValidator,
   updateSubTypeValidator,
 } from "../validators/subtypevalidator.js";
+import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 
 const subtypeRoutes = express.Router();
+
+subtypeRoutes.use(protectRoute);
+subtypeRoutes.use(isAdministrator);
 
 subtypeRoutes.get("/", getSubType);
 subtypeRoutes.get("/:id", getSubTypeById);

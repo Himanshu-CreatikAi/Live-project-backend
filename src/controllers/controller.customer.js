@@ -275,21 +275,28 @@ export const updateCustomer = async (req, res, next) => {
     const { id } = req.params;
     let updateData = { ...req.body };
 
-    // Parse removedImages if coming as JSON string (from FormData)
-    if (typeof updateData.removedImages === "string") {
-      try {
-        updateData.removedImages = JSON.parse(updateData.removedImages);
-      } catch {
-        updateData.removedImages = [];
+    // 🧩 Parse JSON strings if coming from FormData
+    const parseArrayField = (field) => {
+      if (typeof updateData[field] === "string") {
+        try {
+          updateData[field] = JSON.parse(updateData[field]);
+        } catch {
+          updateData[field] = [];
+        }
       }
-    }
+    };
+
+    parseArrayField("removedCustomerImages");
+    parseArrayField("removedSitePlans");
+    parseArrayField("CustomerImage");
+    parseArrayField("SitePlan");
 
     if (updateData.Email === "") updateData.Email = undefined;
 
     const existingCustomer = await Customer.findById(id);
     if (!existingCustomer) return next(new ApiError(404, "Customer not found"));
 
-    // 🧩 Role restrictions
+    // 🧠 Role restrictions
     if (
       admin.role === "user" &&
       existingCustomer.AssignTo?.toString() !== admin._id.toString()
@@ -303,21 +310,64 @@ export const updateCustomer = async (req, res, next) => {
     let CustomerImage = [...existingCustomer.CustomerImage];
     let SitePlan = [...existingCustomer.SitePlan];
 
-    // 🗑️ 1️⃣ Delete removed images from Cloudinary + DB
-    if (updateData.removedImages && Array.isArray(updateData.removedImages)) {
-      for (const url of updateData.removedImages) {
+    // 🗑️ 1️⃣ Delete removed Customer Images
+    if (
+      updateData.removedCustomerImages &&
+      Array.isArray(updateData.removedCustomerImages)
+    ) {
+      for (const url of updateData.removedCustomerImages) {
         const publicId = getPublicIdFromUrl(url);
-        if (publicId) {
+        if (publicId)
           await cloudinary.uploader.destroy(
             `customer/customer_images/${publicId}`
           );
-        }
-        // Remove from existing array
         CustomerImage = CustomerImage.filter((img) => img !== url);
       }
     }
 
-    // 🖼️ 2️⃣ Upload new Customer Images
+    // 🗑️ 2️⃣ Delete removed Site Plans
+    if (
+      updateData.removedSitePlans &&
+      Array.isArray(updateData.removedSitePlans)
+    ) {
+      for (const url of updateData.removedSitePlans) {
+        const publicId = getPublicIdFromUrl(url);
+        if (publicId)
+          await cloudinary.uploader.destroy(`customer/site_plans/${publicId}`);
+        SitePlan = SitePlan.filter((img) => img !== url);
+      }
+    }
+
+    // 🧩 3️⃣ Handle empty arrays (clear all images)
+    if (
+      updateData.CustomerImage &&
+      Array.isArray(updateData.CustomerImage) &&
+      updateData.CustomerImage.length === 0
+    ) {
+      for (const oldUrl of existingCustomer.CustomerImage) {
+        const publicId = getPublicIdFromUrl(oldUrl);
+        if (publicId)
+          await cloudinary.uploader.destroy(
+            `customer/customer_images/${publicId}`
+          );
+      }
+      CustomerImage = [];
+    }
+
+    if (
+      updateData.SitePlan &&
+      Array.isArray(updateData.SitePlan) &&
+      updateData.SitePlan.length === 0
+    ) {
+      for (const oldUrl of existingCustomer.SitePlan) {
+        const publicId = getPublicIdFromUrl(oldUrl);
+        if (publicId)
+          await cloudinary.uploader.destroy(`customer/site_plans/${publicId}`);
+      }
+      SitePlan = [];
+    }
+
+    // 🖼️ 4️⃣ Upload new Customer Images
     if (req.files?.CustomerImage) {
       for (const file of req.files.CustomerImage) {
         const upload = await cloudinary.uploader.upload(file.path, {
@@ -329,14 +379,8 @@ export const updateCustomer = async (req, res, next) => {
       }
     }
 
-    // 📐 3️⃣ Upload new Site Plans
+    // 📐 5️⃣ Upload new Site Plans
     if (req.files?.SitePlan) {
-      for (const oldUrl of existingCustomer.SitePlan) {
-        const publicId = getPublicIdFromUrl(oldUrl);
-        if (publicId)
-          await cloudinary.uploader.destroy(`customer/site_plans/${publicId}`);
-      }
-      SitePlan = [];
       for (const file of req.files.SitePlan) {
         const upload = await cloudinary.uploader.upload(file.path, {
           folder: "customer/site_plans",
@@ -347,11 +391,11 @@ export const updateCustomer = async (req, res, next) => {
       }
     }
 
-    // 🧾 4️⃣ Final update object
+    // 🧾 6️⃣ Final update object
     updateData.CustomerImage = CustomerImage;
     updateData.SitePlan = SitePlan;
 
-    // 🧠 5️⃣ Update customer record
+    // 🧠 7️⃣ Update customer record
     const updatedCustomer = await Customer.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true,
@@ -367,7 +411,7 @@ export const updateCustomer = async (req, res, next) => {
   }
 };
 
-// ✅ DELETE CUSTOMER (Role-based)
+// ✅ DELETE CUSTOMER (Role-based + Cloudinary Cleanup)
 export const deleteCustomer = async (req, res, next) => {
   try {
     const admin = req.admin;
@@ -384,14 +428,36 @@ export const deleteCustomer = async (req, res, next) => {
         new ApiError(403, "You can only delete customers in your city")
       );
 
+    // 🧹 1️⃣ Delete images from Cloudinary
+    if (customer.CustomerImage && customer.CustomerImage.length > 0) {
+      for (const url of customer.CustomerImage) {
+        const publicId = getPublicIdFromUrl(url);
+        if (publicId)
+          await cloudinary.uploader.destroy(
+            `customer/customer_images/${publicId}`
+          );
+      }
+    }
+
+    // 🧹 2️⃣ Delete site plans from Cloudinary
+    if (customer.SitePlan && customer.SitePlan.length > 0) {
+      for (const url of customer.SitePlan) {
+        const publicId = getPublicIdFromUrl(url);
+        if (publicId)
+          await cloudinary.uploader.destroy(`customer/site_plans/${publicId}`);
+      }
+    }
+
+    // 🧾 3️⃣ Delete record from DB
     await customer.deleteOne();
+
     res.status(200).json({ message: "Customer deleted successfully" });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
-// ✅ DELETE ALL CUSTOMERS (Administrator only)
+// ✅ DELETE ALL CUSTOMERS (Administrator only + Cloudinary Cleanup)
 export const deleteAllCustomers = async (req, res, next) => {
   try {
     const admin = req.admin;
@@ -400,7 +466,34 @@ export const deleteAllCustomers = async (req, res, next) => {
         new ApiError(403, "Only administrator can delete all customers")
       );
 
-    const result = await Customer.deleteMany({});
+    // 🧹 1️⃣ Fetch all customers to delete images from Cloudinary
+    const allCustomers = await Customer.find({});
+
+    for (const customer of allCustomers) {
+      if (customer.CustomerImage && customer.CustomerImage.length > 0) {
+        for (const url of customer.CustomerImage) {
+          const publicId = getPublicIdFromUrl(url);
+          if (publicId)
+            await cloudinary.uploader.destroy(
+              `customer/customer_images/${publicId}`
+            );
+        }
+      }
+
+      if (customer.SitePlan && customer.SitePlan.length > 0) {
+        for (const url of customer.SitePlan) {
+          const publicId = getPublicIdFromUrl(url);
+          if (publicId)
+            await cloudinary.uploader.destroy(
+              `customer/site_plans/${publicId}`
+            );
+        }
+      }
+    }
+
+    // 🧾 2️⃣ Delete all customer records
+    await Customer.deleteMany({});
+
     res.status(200).json({ message: "All customers deleted successfully" });
   } catch (error) {
     next(new ApiError(500, error.message));

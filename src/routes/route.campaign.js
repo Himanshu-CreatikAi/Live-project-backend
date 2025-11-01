@@ -12,8 +12,12 @@ import {
   createCampaignValidator,
   updateCampaignValidator,
 } from "../validators/campaignvalidator.js";
+import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 
 const campaignRoutes = express.Router();
+
+campaignRoutes.use(protectRoute);
+campaignRoutes.use(isAdministrator);
 
 campaignRoutes.get("/", getCampaign);
 campaignRoutes.get("/:id", getCampaignById);

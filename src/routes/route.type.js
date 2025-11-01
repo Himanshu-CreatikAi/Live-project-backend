@@ -13,8 +13,12 @@ import {
   createTypeValidator,
   updateTypeValidator,
 } from "../validators/typevalidator.js";
+import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 
 const typeRoutes = express.Router();
+
+typeRoutes.use(protectRoute);
+typeRoutes.use(isAdministrator);
 
 typeRoutes.get("/", getType);
 typeRoutes.get("/:id", getTypeById);
