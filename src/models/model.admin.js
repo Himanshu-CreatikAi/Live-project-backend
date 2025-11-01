@@ -57,7 +57,6 @@ const adminSchema = new mongoose.Schema(
 );
 
 // Index for better query performance
-adminSchema.index({ email: 1 });
 adminSchema.index({ role: 1, city: 1 });
 
 const Admin = mongoose.model("Admin", adminSchema);

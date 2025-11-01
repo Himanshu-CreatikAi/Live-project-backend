@@ -449,3 +449,20 @@
 }
 
  */
+
+/**
+ * for customer data import from the excel file http://localhost:5001/api/customer/import
+ *
+ * file = excel fle .xlsx .xls .csv
+ * Campaign
+ * CustomerType
+ * CustomerSubType
+ */
+
+/**
+ * for contact import from excel file http://localhost:5001/api/contact/import
+ * file = excel file
+ * * Campaign
+ * ContactType
+ * Range
+ */

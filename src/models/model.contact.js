@@ -87,6 +87,7 @@ let contactschema = new mongoose.Schema(
       ref: "Admin",
       default: null,
     },
+    isImported: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

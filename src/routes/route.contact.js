@@ -18,7 +18,10 @@ import {
   updateContactValidator,
 } from "../validators/contactvalidator.js";
 
-import { protectRoute } from "../middlewares/auth.js";
+import { isCityAdminOrAbove, protectRoute } from "../middlewares/auth.js";
+import customerRoutes from "./route.customer.js";
+import { importContacts } from "../controllers/contactImportController.js";
+import { uploadExcel } from "../middlewares/uploadExcel.js";
 
 const contactRoutes = express.Router();
 
@@ -39,5 +42,12 @@ contactRoutes.post("/bulk-assign", bulkAssignCityContacts);
 
 // 🧩 Favourites
 contactRoutes.get("/favourites/all", getFavouriteContacts);
+
+contactRoutes.post(
+  "/import",
+  isCityAdminOrAbove,
+  uploadExcel.single("file"),
+  importContacts
+);
 
 export default contactRoutes;
