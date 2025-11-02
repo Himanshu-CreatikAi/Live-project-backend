@@ -466,3 +466,11 @@
  * ContactType
  * Range
  */
+
+//for company project http://localhost:5001/api/com/pro
+
+// for builder slider http://localhost:5001/api/mas/buil
+
+// for income marketing http://localhost:5001/api/fin/inc
+
+// for expense marketing http://localhost:5001/api/fin/exp

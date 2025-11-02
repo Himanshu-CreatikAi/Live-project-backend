@@ -1,5 +1,8 @@
 import express from "express";
 import cors from "cors";
+import morgan from "morgan";
+import helmet from "helmet";
+import responseTime from "response-time";
 import cookieParser from "cookie-parser";
 import confollowupRoutes from "./routes/route.confollowup.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
@@ -35,9 +38,15 @@ import expenseRoutes from "./routes/route.expenses.js";
 import incomeRoutes from "./routes/route.income.js";
 import statustypeRoutes from "./routes/route.statustype.js";
 import paymentRoutes from "./routes/route.payments.js";
+import companyProjectRoutes from "./routes/route.companyproject.js";
+import builderRoutes from "./routes/route.builderslider.js";
+import incomeMarketingRoutes from "./routes/route.incomemarketing.js";
+import ExpenseMarketingRoutes from "./routes/route.expensemarketing.js";
 
 const app = express();
 app.use(cookieParser());
+
+app.use(helmet());
 
 // CORS
 app.use(
@@ -45,6 +54,16 @@ app.use(
     origin: ["http://localhost:3000", "https://creatik-it.vercel.app"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
+  })
+);
+
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+
+app.use(
+  responseTime((req, res, time) => {
+    console.log(
+      `[PERF] ${req.method} ${req.originalUrl} - ${time.toFixed(2)}ms`
+    );
   })
 );
 
@@ -93,6 +112,10 @@ app.use("/api/mas/exp", expenseRoutes);
 app.use("/api/mas/inc", incomeRoutes);
 app.use("/api/mas/statustype", statustypeRoutes);
 app.use("/api/mas/payments", paymentRoutes);
+app.use("/api/mas/buil", builderRoutes);
+app.use("/api/com/pro", companyProjectRoutes);
+app.use("/api/fin/inc", incomeMarketingRoutes);
+app.use("/api/fin/exp", ExpenseMarketingRoutes);
 
 // Error handler
 app.use(errorHandler);
