@@ -6,7 +6,14 @@ import ApiError from "../utils/ApiError.js";
  */
 export const createTemplate = async (req, res, next) => {
   try {
-    const { name, type, subject = "", body, description = "" } = req.body;
+    const {
+      name,
+      type,
+      subject = "",
+      body,
+      description = "",
+      status = "Active",
+    } = req.body;
 
     if (!name || !type || !body) {
       return next(new ApiError(400, "name, type and body are required"));
@@ -23,7 +30,8 @@ export const createTemplate = async (req, res, next) => {
       subject,
       body,
       description,
-      createdBy: req.user?.id || "system", // optional: if you have auth
+      status,
+      createdBy: req.user?.id || "system",
     });
 
     res.status(201).json({ success: true, data: newTemplate });

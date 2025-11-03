@@ -12,6 +12,11 @@ const templateSchema = new mongoose.Schema(
     body: { type: String, required: true }, // HTML or plain text
     description: { type: String, default: "" }, // optional admin note
     createdBy: { type: String, default: "system" },
+    status: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Active",
+    },
   },
   { timestamps: true }
 );
