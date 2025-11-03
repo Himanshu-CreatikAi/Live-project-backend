@@ -43,10 +43,11 @@ export const getLocationById = async (req, res, next) => {
 
 export const createLocation = async (req, res, next) => {
   try {
-    const { Name, Status } = req.body;
+    const { Name, Status, City } = req.body;
     const location = new Location({
       Name,
       Status,
+      City
     });
     const savedLocation = await location.save();
     res.status(201).json(savedLocation);
