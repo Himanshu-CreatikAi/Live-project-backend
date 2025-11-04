@@ -35,29 +35,26 @@ export const createFollowup = async (req, res, next) => {
 // ✅ Get all follow-ups with pagination and customer data
 export const getFollowups = async (req, res, next) => {
   try {
-    // Accept query params
     const {
       page = 1,
       limit = 10,
       keyword = "",
       status,
       campaign,
-      contactType, // maps to CustomerType
-      propertyType, // maps to CustomerSubType
+      contactType,
+      propertyType,
       city,
       location,
-      user, // maps to ReferenceId (or change if you use AssignedTo)
+      user,
     } = req.query;
 
     const pageNum = Math.max(1, parseInt(page));
     const perPage = Math.max(1, parseInt(limit));
     const skip = (pageNum - 1) * perPage;
 
-    // Build followup-level filters
     const followupFilters = {};
     if (status) followupFilters.StatusType = status;
 
-    // Build customer-level filters (we'll apply after $lookup as "customer.<field>")
     const customerFilters = {};
 
     if (campaign)
@@ -85,7 +82,6 @@ export const getFollowups = async (req, res, next) => {
     if (user)
       customerFilters["customer.ReferenceId"] = { $regex: user, $options: "i" };
 
-    // Keyword search over several customer fields
     const keywordRegex = keyword ? { $regex: keyword, $options: "i" } : null;
     const keywordMatch = keyword
       ? {
@@ -99,29 +95,24 @@ export const getFollowups = async (req, res, next) => {
         }
       : null;
 
-    // Build aggregation pipeline
     const pipeline = [];
 
-    // 1) Match followup-level filters (early filtering)
     if (Object.keys(followupFilters).length)
       pipeline.push({ $match: followupFilters });
 
-    // 2) Lookup customer document
     pipeline.push({
       $lookup: {
-        from: "customers", // collection name (lowercase plural)
+        from: "customers",
         localField: "customer",
         foreignField: "_id",
         as: "customer",
       },
     });
 
-    // 3) Unwind so we can filter on the customer subfields
     pipeline.push({
       $unwind: { path: "$customer", preserveNullAndEmptyArrays: false },
     });
 
-    // 4) Apply customer-level filters and keyword if present
     const combinedCustomerAndKeywordMatch = {
       ...(Object.keys(customerFilters).length ? customerFilters : {}),
       ...(keywordMatch ? keywordMatch : {}),
@@ -130,10 +121,8 @@ export const getFollowups = async (req, res, next) => {
       pipeline.push({ $match: combinedCustomerAndKeywordMatch });
     }
 
-    // 5) Sort (latest first)
     pipeline.push({ $sort: { createdAt: -1 } });
 
-    // 6) Facet to get paginated data + total count in one go
     pipeline.push({
       $facet: {
         metadata: [{ $count: "total" }],
@@ -141,14 +130,12 @@ export const getFollowups = async (req, res, next) => {
       },
     });
 
-    // Run aggregation
     const aggResult = await Followup.aggregate(pipeline);
 
     const metadata = aggResult[0]?.metadata?.[0] || { total: 0 };
     const total = metadata.total || 0;
     const data = aggResult[0]?.data || [];
 
-    // Response with same structure as before
     res.status(200).json({
       success: true,
       total,
@@ -201,6 +188,49 @@ export const deleteAllFollowups = async (req, res, next) => {
     res
       .status(200)
       .json({ success: true, message: "All follow-ups deleted successfully" });
+  } catch (error) {
+    next(new ApiError(500, error.message));
+  }
+};
+
+// ✅ Get follow-up by ID
+export const getFollowupById = async (req, res, next) => {
+  try {
+    const followup = await Followup.findById(req.params.id);
+
+    if (!followup) {
+      return next(new ApiError(404, "Follow-up not found"));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: followup,
+    });
+  } catch (error) {
+    next(new ApiError(500, error.message));
+  }
+};
+
+// ✅ Update follow-up by ID
+export const updateFollowup = async (req, res, next) => {
+  try {
+    const updates = req.body;
+
+    const updatedFollowup = await Followup.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedFollowup) {
+      return next(new ApiError(404, "Follow-up not found"));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Follow-up updated successfully",
+      data: updatedFollowup,
+    });
   } catch (error) {
     next(new ApiError(500, error.message));
   }

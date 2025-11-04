@@ -27,6 +27,6 @@ let confollowAddchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const ConFollowAdd = mongoose.model("ConFollowAdd", confollowAddchema);
+const ConFollowup = mongoose.model("ConFollowAdd", confollowAddchema);
 
-export default ConFollowAdd;
+export default ConFollowup;

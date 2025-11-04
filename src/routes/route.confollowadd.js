@@ -1,39 +1,35 @@
 import express from "express";
 import {
-  createConFollowAdd,
-  deleteConFollowAdd,
-  deleteAllConFollowAdd,
-  getConFollowAdd,
-  getConFollowAddByContact,
-  updateConFollowAdd,
+  createConFollowup,
+  getConFollowups,
+  getConFollowupByContact,
+  getConFollowupById,
+  updateConFollowup,
+  deleteConFollowup,
+  deleteAllConFollowups,
 } from "../controllers/controller.confollowadd.js";
-
-import { validate } from "../middlewares/validate.js";
-import {
-  createConFollowAddValidator,
-  updateConFollowAddValidator,
-} from "../validators/confollowaddvalidator.js";
 
 const confollowaddRoutes = express.Router();
 
-confollowaddRoutes.get("/", getConFollowAdd);
+// ✅ Create follow-up for a specific contact
+confollowaddRoutes.post("/:contactId", createConFollowup);
 
-confollowaddRoutes.get("/contact/:contactId", getConFollowAddByContact);
+// ✅ Get all follow-ups (with pagination and filters)
+confollowaddRoutes.get("/", getConFollowups);
 
-confollowaddRoutes.post(
-  "/:contactId",
-  validate(createConFollowAddValidator),
-  createConFollowAdd
-);
+// ✅ Get all follow-ups for one specific contact
+confollowaddRoutes.get("/contact/:contactId", getConFollowupByContact);
 
-confollowaddRoutes.put(
-  "/:id",
-  validate(updateConFollowAddValidator),
-  updateConFollowAdd
-);
+// ✅ Get a single follow-up by ID
+confollowaddRoutes.get("/:id", getConFollowupById);
 
-confollowaddRoutes.delete("/:id", deleteConFollowAdd);
+// ✅ Update a specific follow-up
+confollowaddRoutes.put("/:id", updateConFollowup);
 
-confollowaddRoutes.delete("/", deleteAllConFollowAdd);
+// ✅ Delete a specific follow-up
+confollowaddRoutes.delete("/:id", deleteConFollowup);
+
+// ✅ Delete all follow-ups
+confollowaddRoutes.delete("/", deleteAllConFollowups);
 
 export default confollowaddRoutes;

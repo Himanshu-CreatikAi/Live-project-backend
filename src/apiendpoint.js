@@ -478,3 +478,9 @@
 // for income marketing http://localhost:5001/api/fin/inc
 
 // for expense marketing http://localhost:5001/api/fin/exp
+
+// posting followup of a contact http://localhost:5001/api/con/follow/add/:contactId
+
+// get update and delete  specific contact follow up http://localhost:5001/api/con/follow/add/:followupId
+
+//getting followup with contact detail http://localhost:5001/api/con/follow/add/contact/:contactId

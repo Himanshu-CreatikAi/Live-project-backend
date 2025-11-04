@@ -1,20 +1,21 @@
-import ConFollowAdd from "../models/model.conFollowAdd.js";
+import ConFollowup from "../models/model.conFollowAdd.js";
 import Contact from "../models/model.contact.js";
 import ApiError from "../utils/ApiError.js";
+import mongoose from "mongoose";
 
 // ✅ Create follow-up linked to a contact
-export const createConFollowAdd = async (req, res, next) => {
+export const createConFollowup = async (req, res, next) => {
   try {
     const { contactId } = req.params;
     const { StartDate, StatusType, FollowupNextDate, Description } = req.body;
 
-    // Verify contact exists
+    // Verify customer exists
     const contact = await Contact.findById(contactId);
     if (!contact) {
       return next(new ApiError(404, "Contact not found"));
     }
 
-    const newConFollowAdd = await ConFollowAdd.create({
+    const newFollowup = await ConFollowup.create({
       contact: contact._id,
       StartDate,
       StatusType,
@@ -24,139 +25,199 @@ export const createConFollowAdd = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: "Contact follow-up created successfully",
-      data: newConFollowAdd,
+      message: "Follow-up created successfully",
+      data: newFollowup,
     });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
-// ✅ Get all contact follow-ups with pagination and contact data
-export const getConFollowAdd = async (req, res, next) => {
+// ✅ Get all contact follow-ups with pagination and filters
+export const getConFollowups = async (req, res, next) => {
   try {
     const {
       page = 1,
       limit = 10,
+      keyword = "",
+      status,
       campaign,
       contactType,
       propertyType,
-      status,
       city,
       location,
       user,
-      keyword = "",
     } = req.query;
 
-    const skip = (page - 1) * limit;
-    const query = {};
+    const pageNum = Math.max(1, parseInt(page));
+    const perPage = Math.max(1, parseInt(limit));
+    const skip = (pageNum - 1) * perPage;
 
-    // 🧩 Filter by followup status
-    if (status) query.StatusType = status;
+    // ✅ Follow-up filters
+    const followupFilters = {};
+    if (status) followupFilters.StatusType = status;
 
-    // 🧩 Populate & filter Contact fields
-    const confollowadds = await ConFollowAdd.find(query)
-      .populate({
-        path: "contact",
-        match: {
-          $and: [
-            campaign ? { Campaign: { $regex: campaign, $options: "i" } } : {},
-            contactType
-              ? { ContactType: { $regex: contactType, $options: "i" } }
-              : {},
-            propertyType
-              ? { ContactIndustry: { $regex: propertyType, $options: "i" } }
-              : {},
-            city ? { City: { $regex: city, $options: "i" } } : {},
-            location ? { Location: { $regex: location, $options: "i" } } : {},
-            user ? { AssignTo: { $regex: user, $options: "i" } } : {},
-            keyword
-              ? {
-                  $or: [
-                    { Name: { $regex: keyword, $options: "i" } },
-                    { ContactNo: { $regex: keyword, $options: "i" } },
-                    { Email: { $regex: keyword, $options: "i" } },
-                    { CompanyName: { $regex: keyword, $options: "i" } },
-                  ],
-                }
-              : {},
+    // ✅ Contact filters
+    const contactFilters = {};
+    if (campaign)
+      contactFilters["contact.Campaign"] = { $regex: campaign, $options: "i" };
+    if (contactType)
+      contactFilters["contact.ContactType"] = {
+        $regex: contactType,
+        $options: "i",
+      };
+    if (propertyType)
+      contactFilters["contact.ContactIndustry"] = {
+        $regex: propertyType,
+        $options: "i",
+      };
+    if (city) contactFilters["contact.City"] = { $regex: city, $options: "i" };
+    if (location)
+      contactFilters["contact.Location"] = { $regex: location, $options: "i" };
+    if (user) contactFilters["contact.User"] = { $regex: user, $options: "i" };
+
+    // ✅ Keyword search
+    const keywordRegex = keyword ? { $regex: keyword, $options: "i" } : null;
+    const keywordMatch = keyword
+      ? {
+          $or: [
+            { "contact.Name": keywordRegex },
+            { "contact.Email": keywordRegex },
+            { "contact.CompanyName": keywordRegex },
+            { "contact.City": keywordRegex },
+            { "contact.Location": keywordRegex },
           ],
-        },
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
+        }
+      : null;
 
-    // 🧩 Filter out results where no contact matched
-    const filteredFollowups = confollowadds.filter((f) => f.contact);
+    // ✅ Aggregation pipeline (like customer follow-up)
+    const pipeline = [];
 
-    // 🧩 Count total documents for pagination
-    const total = filteredFollowups.length;
+    if (Object.keys(followupFilters).length)
+      pipeline.push({ $match: followupFilters });
+
+    pipeline.push({
+      $lookup: {
+        from: "contacts",
+        localField: "contact",
+        foreignField: "_id",
+        as: "contact",
+      },
+    });
+
+    pipeline.push({
+      $unwind: { path: "$contact", preserveNullAndEmptyArrays: false },
+    });
+
+    const combinedMatch = {
+      ...(Object.keys(contactFilters).length ? contactFilters : {}),
+      ...(keywordMatch ? keywordMatch : {}),
+    };
+    if (Object.keys(combinedMatch).length)
+      pipeline.push({ $match: combinedMatch });
+
+    pipeline.push({ $sort: { createdAt: -1 } });
+
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [{ $skip: skip }, { $limit: perPage }],
+      },
+    });
+
+    const aggResult = await ConFollowup.aggregate(pipeline);
+    const metadata = aggResult[0]?.metadata?.[0] || { total: 0 };
+    const total = metadata.total || 0;
+    const data = aggResult[0]?.data || [];
 
     res.status(200).json({
       success: true,
       total,
-      currentPage: Number(page),
-      totalPages: Math.ceil(total / limit),
-      data: filteredFollowups,
+      currentPage: pageNum,
+      totalPages: Math.ceil(total / perPage),
+      data,
     });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
-// ✅ Get contact follow-ups by specific contact
-export const getConFollowAddByContact = async (req, res, next) => {
+// ✅ Get all follow-ups for a specific contact
+export const getConFollowupByContact = async (req, res, next) => {
   try {
     const { contactId } = req.params;
-    const confollowadds = await ConFollowAdd.find({ contact: contactId }).sort({
-      createdAt: -1,
-    });
+
+    // ✅ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(contactId)) {
+      return next(new ApiError(400, "Invalid contact ID"));
+    }
+
+    const followups = await ConFollowup.find({ contact: contactId })
+      .populate("contact")
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      total: confollowadds.length,
-      data: confollowadds,
+      total: followups.length,
+      data: followups,
     });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
 };
 
-// ✅ Update a specific contact follow-up
-export const updateConFollowAdd = async (req, res, next) => {
+// ✅ Get single contact follow-up by ID
+export const getConFollowupById = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const updatedConFollowAdd = await ConFollowAdd.findByIdAndUpdate(
-      id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedConFollowAdd) {
+    const followup = await ConFollowup.findById(req.params.id);
+
+    if (!followup)
       return next(new ApiError(404, "Contact Follow-up not found"));
-    }
+
     res.status(200).json({
       success: true,
-      message: "Contact follow-up updated successfully",
-      data: updatedConFollowAdd,
+      data: followup,
     });
   } catch (error) {
-    next(new ApiError(400, error.message));
+    next(new ApiError(500, error.message));
   }
 };
 
-// ✅ Delete specific contact follow-up
-export const deleteConFollowAdd = async (req, res, next) => {
+// ✅ Update contact follow-up by ID
+export const updateConFollowup = async (req, res, next) => {
   try {
-    const deletedConFollowAdd = await ConFollowAdd.findByIdAndDelete(
-      req.params.id
+    const updates = req.body;
+
+    const updated = await ConFollowup.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      {
+        new: true,
+        runValidators: true,
+      }
     );
-    if (!deletedConFollowAdd) {
-      return next(new ApiError(404, "Contact Follow-up not found"));
-    }
+
+    if (!updated) return next(new ApiError(404, "Contact Follow-up not found"));
+
     res.status(200).json({
       success: true,
-      message: "Contact follow-up deleted successfully",
+      message: "Contact Follow-up updated successfully",
+      data: updated,
+    });
+  } catch (error) {
+    next(new ApiError(500, error.message));
+  }
+};
+
+// ✅ Delete contact follow-up by ID
+export const deleteConFollowup = async (req, res, next) => {
+  try {
+    const deleted = await ConFollowup.findByIdAndDelete(req.params.id);
+    if (!deleted) return next(new ApiError(404, "Contact Follow-up not found"));
+
+    res.status(200).json({
+      success: true,
+      message: "Contact Follow-up deleted successfully",
     });
   } catch (error) {
     next(new ApiError(500, error.message));
@@ -164,12 +225,12 @@ export const deleteConFollowAdd = async (req, res, next) => {
 };
 
 // ✅ Delete all contact follow-ups
-export const deleteAllConFollowAdd = async (req, res, next) => {
+export const deleteAllConFollowups = async (req, res, next) => {
   try {
-    await ConFollowAdd.deleteMany({});
+    await ConFollowup.deleteMany({});
     res.status(200).json({
       success: true,
-      message: "All contact follow-ups deleted successfully",
+      message: "All Contact Follow-ups deleted successfully",
     });
   } catch (error) {
     next(new ApiError(500, error.message));
