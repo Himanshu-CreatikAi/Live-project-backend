@@ -244,6 +244,10 @@
 
 //for sending email
 //http://localhost:5001/api/v1/messages/email
+//{
+//     "templateId":"6909bef15dea0d6760c18357",
+//     "customerIds":["6908c356b0c651c2ca8dc280"]
+//   }
 
 //for creating whats app and email template
 //http://localhost:5001/api/v1/templates

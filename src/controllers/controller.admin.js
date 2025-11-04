@@ -2,6 +2,7 @@ import { genrateToken } from "../config/adminjwt.js";
 import Admin from "../models/model.admin.js";
 import bcrypt from "bcryptjs";
 import ApiError from "../utils/ApiError.js";
+import { sendSystemEmail } from "../config/mailer.js";
 
 // Sign up admin (Only for creating initial administrator)
 export const adminSignup = async (req, res) => {
@@ -84,34 +85,26 @@ export const createAdmin = async (req, res) => {
   try {
     const currentAdmin = req.admin;
 
-    // Validate permissions
+    // Permission checks
     if (currentAdmin.role === "administrator") {
-      // Administrator can create anyone
+      // can create any
     } else if (currentAdmin.role === "city_admin") {
-      // City admin can only create users in their city
-      if (role !== "user") {
+      if (role !== "user")
         throw new ApiError(403, "City admins can only create users");
-      }
-      if (city !== currentAdmin.city) {
+      if (city !== currentAdmin.city)
         throw new ApiError(403, "You can only create users in your city");
-      }
     } else {
       throw new ApiError(403, "You don't have permission to create accounts");
     }
 
-    if (!email || !password || !name || !role) {
+    if (!email || !password || !name || !role)
       throw new ApiError(400, "Missing required details");
-    }
 
     const existingAdmin = await Admin.findOne({ email });
-    if (existingAdmin) {
-      throw new ApiError(409, "Account already exists");
-    }
+    if (existingAdmin) throw new ApiError(409, "Account already exists");
 
-    // Validate city requirement
-    if ((role === "city_admin" || role === "user") && !city) {
+    if ((role === "city_admin" || role === "user") && !city)
       throw new ApiError(400, "City is required for this role");
-    }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -131,13 +124,18 @@ export const createAdmin = async (req, res) => {
     const adminData = newAdmin.toObject();
     delete adminData.password;
 
+    // ✉️ Send role-based system email
+    sendSystemEmail(email, name, password, role)
+      .then(() => console.log(`✅ Account email sent to ${email}`))
+      .catch((err) => console.error("❌ Email send failed:", err.message));
+
     res.status(201).json({
       success: true,
       adminData,
-      message: `${role} created successfully`,
+      message: `${role} created successfully. Login credentials have been sent via email.`,
     });
   } catch (error) {
-    console.log(error.message);
+    console.error(error.message);
     if (error instanceof ApiError) {
       res
         .status(error.statusCode)
