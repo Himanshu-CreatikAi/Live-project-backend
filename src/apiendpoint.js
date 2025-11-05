@@ -484,3 +484,7 @@
 // get update and delete  specific contact follow up http://localhost:5001/api/con/follow/add/:followupId
 
 //getting followup with contact detail http://localhost:5001/api/con/follow/add/contact/:contactId
+
+// chang password http://localhost:5001/api/admin/6909cbc66147b85defc777b1/password
+//{"currentPassword":"Test@12", "newPassword":"Himanshu@12"}
+//  if city admin or super admin update the password of others then they donont need current password
