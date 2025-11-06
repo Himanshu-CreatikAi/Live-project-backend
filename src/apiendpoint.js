@@ -225,7 +225,7 @@
 // for assigning customers http://localhost:5001/api/customer/assign
 /**
  * {
-  "customerId": "690376c664cfec49371ad0b2",
+  "customerIds": ["690376c664cfec49371ad0b2"],  
   "assignToId": "6902f0d10d6a8ecb146ecc10" 
 }
 
@@ -241,7 +241,10 @@
 
 // for sending whatsapp message
 //http://localhost:5001/api/v1/messages/whatsapp
-
+// {
+//      "templateId":"69083aeff944cb9a59c1563f",
+//      "customerIds":["690bf6e8cba29966c9fcc595"]
+//    }
 //for sending email
 //http://localhost:5001/api/v1/messages/email
 //{

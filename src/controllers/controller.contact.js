@@ -68,31 +68,37 @@ export const getContact = async (req, res, next) => {
 // ✅ ASSIGN OR REASSIGN CONTACT (Role-based)
 export const assignContact = async (req, res, next) => {
   try {
-    const { contactId, assignToId } = req.body;
+    const { contactIds = [], assignToId } = req.body;
     const admin = req.admin;
 
-    if (!contactId || !assignToId) {
-      return next(new ApiError(400, "contactId and assignToId are required"));
+    if (!Array.isArray(contactIds) || contactIds.length === 0 || !assignToId) {
+      return next(
+        new ApiError(400, "contactIds (array) and assignToId are required")
+      );
     }
-
-    // 🔍 Fetch contact
-    const contact = await Contact.findById(contactId);
-    if (!contact) return next(new ApiError(404, "Contact not found"));
 
     // 🔍 Fetch target admin/user
     const assignToAdmin = await Admin.findById(assignToId);
     if (!assignToAdmin) return next(new ApiError(404, "Admin/User not found"));
 
+    // 🔍 Fetch all contacts
+    const contacts = await Contact.find({ _id: { $in: contactIds } });
+    if (contacts.length === 0)
+      return next(new ApiError(404, "No valid contacts found"));
+
     // 🧩 Role restrictions
     if (admin.role === "city_admin") {
-      // Ensure contact city matches admin city
-      if (contact.City?.toLowerCase() !== admin.city?.toLowerCase()) {
+      // Ensure all contacts belong to admin’s city
+      const invalidContacts = contacts.filter(
+        (c) => c.City?.toLowerCase() !== admin.city?.toLowerCase()
+      );
+      if (invalidContacts.length > 0) {
         return next(
           new ApiError(403, "You can only assign contacts in your city")
         );
       }
 
-      // Ensure target admin belongs to same city
+      // Ensure target user/admin belongs to same city
       if (assignToAdmin.city?.toLowerCase() !== admin.city?.toLowerCase()) {
         return next(
           new ApiError(403, "You can only assign to users in your city")
@@ -102,14 +108,21 @@ export const assignContact = async (req, res, next) => {
       return next(new ApiError(403, "Users cannot assign contacts"));
     }
 
-    // ✅ Assign contact
-    contact.AssignTo = assignToId;
-    await contact.save();
+    // ✅ Bulk update all selected contacts
+    await Contact.updateMany(
+      { _id: { $in: contactIds } },
+      { $set: { AssignTo: assignToId } }
+    );
+
+    const updatedContacts = await Contact.find({ _id: { $in: contactIds } });
+
+    // 📝 Optional: log each assignment (you can save to a separate collection)
+    // Example: ContactAssignmentHistory.create([...])
 
     res.status(200).json({
       success: true,
-      message: "Contact assigned successfully",
-      data: contact,
+      message: `Assigned ${updatedContacts.length} contacts successfully`,
+      data: updatedContacts,
     });
   } catch (error) {
     next(new ApiError(500, error.message));

@@ -162,3 +162,29 @@ export const sendWhatsAppByTemplate = async (req, res, next) => {
     next(new ApiError(500, err.message));
   }
 };
+
+// export const sendWhatsApp = async (to, message) => {
+//   try {
+//     const result = await axios.post(
+//       `https://graph.facebook.com/v17.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
+//       {
+//         messaging_product: "whatsapp",
+//         to,
+//         type: "text",
+//         text: { body: message },
+//       },
+//       {
+//         headers: {
+//           Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+//           "Content-Type": "application/json",
+//         },
+//       }
+//     );
+
+//     console.log("✅ WhatsApp sent:", result.data);
+//     return result.data;
+//   } catch (error) {
+//     console.error("❌ WhatsApp error:", error.response?.data || error.message);
+//     throw new Error(error.response?.data?.error?.message || error.message);
+//   }
+// };

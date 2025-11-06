@@ -21,3 +21,33 @@ export const sendWhatsApp = async (to, message) => {
     throw error;
   }
 };
+
+// export const sendWhatsApp = async (to, message) => {
+//   try {
+//     // Format phone (remove '+' if present)
+//     const phone = to.replace("+", "").trim();
+
+//     const response = await axios.post(
+//       `https://graph.facebook.com/v19.0/${process.env.META_WA_PHONE_ID}/messages`,
+//       {
+//         messaging_product: "whatsapp",
+//         to: phone,
+//         type: "text",
+//         text: { body: message },
+//       },
+//       {
+//         headers: {
+//           Authorization: `Bearer ${process.env.META_WA_ACCESS_TOKEN}`,
+//           "Content-Type": "application/json",
+//         },
+//       }
+//     );
+
+//     console.log("✅ WhatsApp sent:", response.data.messages?.[0]?.id || "Message Sent");
+//     return response.data;
+//   } catch (error) {
+//     const errMsg = error.response?.data?.error?.message || error.message;
+//     console.error("❌ WhatsApp error:", errMsg);
+//     throw new Error(errMsg);
+//   }
+// };

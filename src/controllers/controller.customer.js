@@ -64,23 +64,30 @@ export const getCustomer = async (req, res, next) => {
 // ✅ ASSIGN OR REASSIGN CUSTOMER
 export const assignCustomer = async (req, res, next) => {
   try {
-    const { customerId, assignToId } = req.body;
+    const { customerIds = [], assignToId } = req.body;
     const admin = req.admin;
 
-    if (!customerId || !assignToId)
-      return next(new ApiError(400, "customerId and assignToId are required"));
-
-    const customer = await Customer.findById(customerId);
-    if (!customer) return next(new ApiError(404, "Customer not found"));
+    if (!Array.isArray(customerIds) || customerIds.length === 0 || !assignToId)
+      return next(
+        new ApiError(400, "customerIds (array) and assignToId are required")
+      );
 
     const assignToAdmin = await Admin.findById(assignToId);
     if (!assignToAdmin) return next(new ApiError(404, "Admin/User not found"));
 
+    const customers = await Customer.find({ _id: { $in: customerIds } });
+    if (customers.length === 0)
+      return next(new ApiError(404, "No valid customers found"));
+
+    // 🔒 Role-based checks
     if (admin.role === "city_admin") {
-      if (customer.City !== admin.city)
+      // Ensure all customers belong to the same city
+      const invalidCustomers = customers.filter((c) => c.City !== admin.city);
+      if (invalidCustomers.length > 0)
         return next(
           new ApiError(403, "You can only assign customers in your city")
         );
+
       if (assignToAdmin.city !== admin.city)
         return next(
           new ApiError(403, "You can only assign to users in your city")
@@ -91,13 +98,18 @@ export const assignCustomer = async (req, res, next) => {
       );
     }
 
-    customer.AssignTo = assignToId;
-    await customer.save();
+    // ✅ Bulk update all customers
+    await Customer.updateMany(
+      { _id: { $in: customerIds } },
+      { $set: { AssignTo: assignToId } }
+    );
+
+    const updatedCustomers = await Customer.find({ _id: { $in: customerIds } });
 
     res.status(200).json({
       success: true,
-      message: "Customer assigned successfully",
-      data: customer,
+      message: `Assigned ${updatedCustomers.length} customers successfully`,
+      data: updatedCustomers,
     });
   } catch (error) {
     next(new ApiError(500, error.message));
