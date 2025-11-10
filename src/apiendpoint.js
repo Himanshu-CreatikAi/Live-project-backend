@@ -491,3 +491,7 @@
 // chang password http://localhost:5001/api/admin/6909cbc66147b85defc777b1/password
 //{"currentPassword":"Test@12", "newPassword":"Himanshu@12"}
 //  if city admin or super admin update the password of others then they donont need current password
+
+// getting type by a campaign http://localhost:5001/api/mas/type/campaign/6911c227307566cfb695aa78
+//getting sub type by campaign and type http://localhost:5001/api/mas/sub/filter/:campaign/:type
+// getting contact type by campaign http://localhost:5001/api/mas/contacttype/campaign/6911c227307566cfb695aa78

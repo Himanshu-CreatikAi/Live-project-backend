@@ -8,7 +8,8 @@ let campaignschema = new mongoose.Schema(
     },
     Status: {
       type: String,
-      default: "",
+      enum: ["Active", "Inactive"],
+      default: "Active",
     },
   },
   { timestamps: true }

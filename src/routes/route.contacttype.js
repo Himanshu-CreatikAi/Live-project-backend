@@ -3,6 +3,7 @@ import {
   createContactType,
   deleteContactType,
   getContactType,
+  getContactTypeByCampaign,
   getContactTypeById,
   updateContactType,
 } from "../controllers/controller.contactType.js";
@@ -17,6 +18,11 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const contactTypeRoutes = express.Router();
 contactTypeRoutes.use(protectRoute);
 
+contactTypeRoutes.get(
+  "/campaign/:campaignId",
+  protectRoute,
+  getContactTypeByCampaign
+);
 contactTypeRoutes.get("/", getContactType);
 contactTypeRoutes.get("/:id", isAdministrator, getContactTypeById);
 contactTypeRoutes.post(

@@ -1,6 +1,31 @@
 import ContactType from "../models/model.contacttype.js";
 import ApiError from "../utils/ApiError.js";
 
+// ✅ Get all contact types for a specific Campaign
+export const getContactTypeByCampaign = async (req, res, next) => {
+  try {
+    const { campaignId } = req.params;
+
+    const contactTypes = await ContactType.find({ Campaign: campaignId })
+      .sort({ createdAt: -1 })
+      .populate("Campaign", "Name Description Status"); // optional: populate some fields
+
+    if (!contactTypes || contactTypes.length === 0) {
+      return next(
+        new ApiError(404, "No Contact Types found for this campaign")
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      count: contactTypes.length,
+      data: contactTypes,
+    });
+  } catch (error) {
+    next(new ApiError(500, error.message));
+  }
+};
+
 export const getContactType = async (req, res, next) => {
   try {
     const { keyword, limit } = req.query;

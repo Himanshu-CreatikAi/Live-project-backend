@@ -3,8 +3,9 @@ import mongoose from "mongoose";
 let typeschema = new mongoose.Schema(
   {
     Campaign: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Campaign",
+      required: true,
     },
     Name: {
       type: String,
@@ -12,7 +13,8 @@ let typeschema = new mongoose.Schema(
     },
     Status: {
       type: String,
-      default: "",
+      enum: ["Active", "Inactive"],
+      default: "Active",
     },
   },
   { timestamps: true }

@@ -19,7 +19,19 @@ const typeRoutes = express.Router();
 
 typeRoutes.use(protectRoute);
 
+// ✅ Get all or filtered types
 typeRoutes.get("/", getType);
+
+// ✅ Get types by campaign (for dependent dropdowns)
+typeRoutes.get(
+  "/campaign/:campaignId",
+  async (req, res, next) => {
+    req.query.campaignId = req.params.campaignId;
+    next(); // reuse getType logic
+  },
+  getType
+);
+
 typeRoutes.get("/:id", isAdministrator, getTypeById);
 typeRoutes.post(
   "/",

@@ -3,12 +3,14 @@ import mongoose from "mongoose";
 let subtypeschema = new mongoose.Schema(
   {
     Campaign: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Campaign",
+      required: true,
     },
     CustomerType: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Type",
+      required: true,
     },
     Name: {
       type: String,
@@ -16,7 +18,8 @@ let subtypeschema = new mongoose.Schema(
     },
     Status: {
       type: String,
-      default: "",
+      enum: ["Active", "Inactive"],
+      default: "Active",
     },
   },
   { timestamps: true }

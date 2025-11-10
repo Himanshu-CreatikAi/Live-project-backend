@@ -19,7 +19,20 @@ const subtypeRoutes = express.Router();
 
 subtypeRoutes.use(protectRoute);
 
+// ✅ Get all or filtered SubTypes
 subtypeRoutes.get("/", getSubType);
+
+// ✅ Get SubTypes by campaign and/or type
+subtypeRoutes.get(
+  "/filter/:campaignId/:typeId?",
+  async (req, res, next) => {
+    req.query.campaignId = req.params.campaignId;
+    if (req.params.typeId) req.query.typeId = req.params.typeId;
+    next(); // reuse getSubType logic
+  },
+  getSubType
+);
+
 subtypeRoutes.get("/:id", isAdministrator, getSubTypeById);
 subtypeRoutes.post(
   "/",
