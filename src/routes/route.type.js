@@ -18,13 +18,22 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const typeRoutes = express.Router();
 
 typeRoutes.use(protectRoute);
-typeRoutes.use(isAdministrator);
 
 typeRoutes.get("/", getType);
-typeRoutes.get("/:id", getTypeById);
-typeRoutes.post("/", validate(createTypeValidator), createType);
-typeRoutes.put("/:id", validate(updateTypeValidator), updateType);
-typeRoutes.delete("/", deleteType);
-typeRoutes.delete("/:id", deleteTypebyId);
+typeRoutes.get("/:id", isAdministrator, getTypeById);
+typeRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createTypeValidator),
+  createType
+);
+typeRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateTypeValidator),
+  updateType
+);
+typeRoutes.delete("/", isAdministrator, deleteType);
+typeRoutes.delete("/:id", isAdministrator, deleteTypebyId);
 
 export default typeRoutes;

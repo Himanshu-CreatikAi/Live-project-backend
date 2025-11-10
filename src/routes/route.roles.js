@@ -17,12 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const roleRoutes = express.Router();
 
 roleRoutes.use(protectRoute);
-roleRoutes.use(isAdministrator);
 
 roleRoutes.get("/", getRole);
-roleRoutes.get("/:id", getRoleById);
-roleRoutes.post("/", validate(createRoleValidator), createRole);
-roleRoutes.put("/:id", validate(updateRoleValidator), updateRole);
-roleRoutes.delete("/:id", deleteRole);
+roleRoutes.get("/:id", isAdministrator, getRoleById);
+roleRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createRoleValidator),
+  createRole
+);
+roleRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateRoleValidator),
+  updateRole
+);
+roleRoutes.delete("/:id", isAdministrator, deleteRole);
 
 export default roleRoutes;

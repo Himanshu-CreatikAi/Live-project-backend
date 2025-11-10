@@ -11,12 +11,11 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const templateRoute = express.Router();
 
 templateRoute.use(protectRoute);
-templateRoute.use(isAdministrator);
 
 templateRoute.post("/", createTemplate);
-templateRoute.get("/", getTemplates);
-templateRoute.get("/:id", getTemplateById);
-templateRoute.put("/:id", updateTemplate);
-templateRoute.delete("/:id", deleteTemplate);
+templateRoute.get("/", isAdministrator, getTemplates);
+templateRoute.get("/:id", isAdministrator, getTemplateById);
+templateRoute.put("/:id", isAdministrator, updateTemplate);
+templateRoute.delete("/:id", isAdministrator, deleteTemplate);
 
 export default templateRoute;

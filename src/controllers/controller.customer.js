@@ -475,19 +475,33 @@ export const deleteCustomer = async (req, res, next) => {
   }
 };
 
-// ✅ DELETE ALL CUSTOMERS (Optimized)
+// ✅ DELETE SELECTED OR ALL CUSTOMERS (Optimized)
 export const deleteAllCustomers = async (req, res, next) => {
   try {
     const admin = req.admin;
     if (admin.role !== "administrator")
-      return next(
-        new ApiError(403, "Only administrator can delete all customers")
-      );
+      return next(new ApiError(403, "Only administrator can delete customers"));
 
-    const allCustomers = await Customer.find({});
+    // 🆕 Accept array of customer IDs from request body
+    const { customerIds } = req.body;
+
+    let customersToDelete = [];
+
+    if (Array.isArray(customerIds) && customerIds.length > 0) {
+      // ✅ Delete only selected customers
+      customersToDelete = await Customer.find({ _id: { $in: customerIds } });
+      if (customersToDelete.length === 0)
+        return next(new ApiError(404, "No valid customers found"));
+    } else {
+      // ✅ Delete all customers when array is empty or not sent
+      customersToDelete = await Customer.find({});
+      if (customersToDelete.length === 0)
+        return next(new ApiError(404, "No customers found to delete"));
+    }
+
     const deletions = [];
 
-    for (const c of allCustomers) {
+    for (const c of customersToDelete) {
       if (c.CustomerImage?.length) {
         deletions.push(
           ...c.CustomerImage.map((url) =>
@@ -508,11 +522,28 @@ export const deleteAllCustomers = async (req, res, next) => {
       }
     }
 
-    await Promise.all(deletions);
-    await Customer.deleteMany({});
+    // 🧩 Make Cloudinary deletions safe — don’t break on individual errors
+    await Promise.allSettled(deletions);
 
-    res.status(200).json({ message: "All customers deleted successfully" });
+    if (Array.isArray(customerIds) && customerIds.length > 0) {
+      await Customer.deleteMany({ _id: { $in: customerIds } });
+    } else {
+      await Customer.deleteMany({});
+    }
+
+    res.status(200).json({
+      success: true,
+      message:
+        Array.isArray(customerIds) && customerIds.length > 0
+          ? "Selected customers deleted successfully"
+          : "All customers deleted successfully",
+      deletedCustomerIds:
+        Array.isArray(customerIds) && customerIds.length > 0
+          ? customerIds
+          : customersToDelete.map((c) => c._id),
+    });
   } catch (error) {
+    console.error("❌ DeleteAllCustomers Error:", error);
     next(new ApiError(500, error.message));
   }
 };

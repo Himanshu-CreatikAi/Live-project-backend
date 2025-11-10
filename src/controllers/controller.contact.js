@@ -307,22 +307,53 @@ export const deleteContactbyId = async (req, res, next) => {
   }
 };
 
-// ✅ DELETE ALL CONTACTS (Administrator only)
+// ✅ DELETE SELECTED OR ALL CONTACTS (Administrator only)
 export const deleteAllContacts = async (req, res, next) => {
   try {
     const admin = req.admin;
-    if (admin.role !== "administrator")
-      return next(
-        new ApiError(403, "Only administrator can delete all contacts")
-      );
 
-    const result = await Contact.deleteMany({});
+    if (admin.role !== "administrator") {
+      return next(new ApiError(403, "Only administrator can delete contacts"));
+    }
+
+    // 🆕 Accept array of contact IDs from request body
+    const { contactIds } = req.body;
+
+    let contactsToDelete = [];
+
+    if (Array.isArray(contactIds) && contactIds.length > 0) {
+      // ✅ Delete only selected contacts
+      contactsToDelete = await Contact.find({ _id: { $in: contactIds } });
+
+      if (contactsToDelete.length === 0)
+        return next(new ApiError(404, "No valid contacts found"));
+    } else {
+      // ✅ Delete all contacts when array is empty or not sent
+      contactsToDelete = await Contact.find({});
+      if (contactsToDelete.length === 0)
+        return next(new ApiError(404, "No contacts found to delete"));
+    }
+
+    // 🧹 Perform deletion
+    if (Array.isArray(contactIds) && contactIds.length > 0) {
+      await Contact.deleteMany({ _id: { $in: contactIds } });
+    } else {
+      await Contact.deleteMany({});
+    }
+
     res.status(200).json({
       success: true,
-      message: "All contacts deleted successfully",
-      deleted: result.deletedCount,
+      message:
+        Array.isArray(contactIds) && contactIds.length > 0
+          ? "Selected contacts deleted successfully"
+          : "All contacts deleted successfully",
+      deletedContactIds:
+        Array.isArray(contactIds) && contactIds.length > 0
+          ? contactIds
+          : contactsToDelete.map((c) => c._id),
     });
   } catch (error) {
+    console.error("❌ DeleteAllContacts Error:", error);
     next(new ApiError(500, error.message));
   }
 };

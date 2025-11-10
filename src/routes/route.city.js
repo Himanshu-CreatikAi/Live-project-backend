@@ -17,12 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const cityRoutes = express.Router();
 
 cityRoutes.use(protectRoute);
-cityRoutes.use(isAdministrator);
 
 cityRoutes.get("/", getCity);
-cityRoutes.get("/:id", getCityById);
-cityRoutes.post("/", validate(createCityValidator), createCity);
-cityRoutes.put("/:id", validate(updateCityValidator), updateCity);
-cityRoutes.delete("/:id", deleteCity);
+cityRoutes.get("/:id", isAdministrator, getCityById);
+cityRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createCityValidator),
+  createCity
+);
+cityRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateCityValidator),
+  updateCity
+);
+cityRoutes.delete("/:id", isAdministrator, deleteCity);
 
 export default cityRoutes;

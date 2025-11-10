@@ -16,12 +16,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 
 const locationRoutes = express.Router();
 locationRoutes.use(protectRoute);
-locationRoutes.use(isAdministrator);
 
 locationRoutes.get("/", getLocation);
-locationRoutes.get("/:id", getLocationById);
-locationRoutes.post("/", validate(createLocationValidator), createLocation);
-locationRoutes.put("/:id", validate(updateLocationValidator), updateLocation);
-locationRoutes.delete("/:id", deleteLocation);
+locationRoutes.get("/:id", isAdministrator, getLocationById);
+locationRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createLocationValidator),
+  createLocation
+);
+locationRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateLocationValidator),
+  updateLocation
+);
+locationRoutes.delete("/:id", isAdministrator, deleteLocation);
 
 export default locationRoutes;

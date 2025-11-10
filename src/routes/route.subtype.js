@@ -18,13 +18,22 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const subtypeRoutes = express.Router();
 
 subtypeRoutes.use(protectRoute);
-subtypeRoutes.use(isAdministrator);
 
 subtypeRoutes.get("/", getSubType);
-subtypeRoutes.get("/:id", getSubTypeById);
-subtypeRoutes.post("/", validate(createSubTypeValidator), createSubType);
-subtypeRoutes.put("/:id", validate(updateSubTypeValidator), updateSubType);
-subtypeRoutes.delete("/", deleteSubType);
-subtypeRoutes.delete("/:id", deleteSubTypebyId);
+subtypeRoutes.get("/:id", isAdministrator, getSubTypeById);
+subtypeRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createSubTypeValidator),
+  createSubType
+);
+subtypeRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateSubTypeValidator),
+  updateSubType
+);
+subtypeRoutes.delete("/", isAdministrator, deleteSubType);
+subtypeRoutes.delete("/:id", isAdministrator, deleteSubTypebyId);
 
 export default subtypeRoutes;

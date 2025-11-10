@@ -17,12 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const expenseRoutes = express.Router();
 
 expenseRoutes.use(protectRoute);
-expenseRoutes.use(isAdministrator);
 
 expenseRoutes.get("/", getExpense);
-expenseRoutes.get("/:id", getExpenseById);
-expenseRoutes.post("/", validate(createExpenseValidator), createExpense);
-expenseRoutes.put("/:id", validate(updateExpenseValidator), updateExpense);
-expenseRoutes.delete("/:id", deleteExpense);
+expenseRoutes.get("/:id", isAdministrator, getExpenseById);
+expenseRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createExpenseValidator),
+  createExpense
+);
+expenseRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateExpenseValidator),
+  updateExpense
+);
+expenseRoutes.delete("/:id", isAdministrator, deleteExpense);
 
 export default expenseRoutes;

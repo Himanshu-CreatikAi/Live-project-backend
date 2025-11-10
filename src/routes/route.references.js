@@ -17,16 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const referenceRoutes = express.Router();
 
 referenceRoutes.use(protectRoute);
-referenceRoutes.use(isAdministrator);
 
 referenceRoutes.get("/", getReference);
-referenceRoutes.get("/:id", getReferenceById);
-referenceRoutes.post("/", validate(createReferenceValidator), createReference);
+referenceRoutes.get("/:id", isAdministrator, getReferenceById);
+referenceRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createReferenceValidator),
+  createReference
+);
 referenceRoutes.put(
   "/:id",
+  isAdministrator,
   validate(updateReferenceValidator),
   updateReference
 );
-referenceRoutes.delete("/:id", deleteReference);
+referenceRoutes.delete("/:id", isAdministrator, deleteReference);
 
 export default referenceRoutes;

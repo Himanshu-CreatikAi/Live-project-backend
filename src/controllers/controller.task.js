@@ -73,14 +73,39 @@ export const updateTask = async (req, res, next) => {
   }
 };
 
+// ✅ DELETE SELECTED OR ALL TASKS (Administrator only)
 export const deleteTask = async (req, res, next) => {
   try {
-    const deletedTask = await Task.findByIdAndDelete(req.params.id);
-    if (!deletedTask) {
-      return next(new ApiError(404, "Task not found"));
+    const { taskIds } = req.body;
+
+    // ✅ If body is empty, treat it like "delete all"
+    if (!taskIds || (Array.isArray(taskIds) && taskIds.length === 0)) {
+      const allTasks = await Task.find();
+      if (allTasks.length === 0)
+        return next(new ApiError(404, "No tasks found to delete"));
+
+      await Task.deleteMany({});
+      return res.status(200).json({
+        success: true,
+        message: "All tasks deleted successfully",
+        deletedTaskIds: allTasks.map((t) => t._id),
+      });
     }
-    res.status(200).json({ message: "Task deleted successfully" });
+
+    // ✅ Delete selected
+    const tasksToDelete = await Task.find({ _id: { $in: taskIds } });
+    if (tasksToDelete.length === 0)
+      return next(new ApiError(404, "No valid tasks found"));
+
+    await Task.deleteMany({ _id: { $in: taskIds } });
+
+    res.status(200).json({
+      success: true,
+      message: "Selected tasks deleted successfully",
+      deletedTaskIds: taskIds,
+    });
   } catch (error) {
+    console.error("❌ DeleteTask Error:", error);
     next(new ApiError(500, error.message));
   }
 };

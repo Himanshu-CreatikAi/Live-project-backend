@@ -16,20 +16,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 
 const contactTypeRoutes = express.Router();
 contactTypeRoutes.use(protectRoute);
-contactTypeRoutes.use(isAdministrator);
 
 contactTypeRoutes.get("/", getContactType);
-contactTypeRoutes.get("/:id", getContactTypeById);
+contactTypeRoutes.get("/:id", isAdministrator, getContactTypeById);
 contactTypeRoutes.post(
   "/",
+  isAdministrator,
   validate(createContactTypeValidator),
   createContactType
 );
 contactTypeRoutes.put(
   "/:id",
+  isAdministrator,
   validate(updateContactTypeValidator),
   updateContactType
 );
-contactTypeRoutes.delete("/:id", deleteContactType);
+contactTypeRoutes.delete("/:id", isAdministrator, deleteContactType);
 
 export default contactTypeRoutes;

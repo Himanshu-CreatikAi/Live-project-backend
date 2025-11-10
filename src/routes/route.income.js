@@ -17,12 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const incomeRoutes = express.Router();
 
 incomeRoutes.use(protectRoute);
-incomeRoutes.use(isAdministrator);
 
 incomeRoutes.get("/", getIncome);
-incomeRoutes.get("/:id", getIncomeById);
-incomeRoutes.post("/", validate(createIncomeValidator), createIncome);
-incomeRoutes.put("/:id", validate(updateIncomeValidator), updateIncome);
-incomeRoutes.delete("/:id", deleteIncome);
+incomeRoutes.get("/:id", isAdministrator, getIncomeById);
+incomeRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createIncomeValidator),
+  createIncome
+);
+incomeRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateIncomeValidator),
+  updateIncome
+);
+incomeRoutes.delete("/:id", isAdministrator, deleteIncome);
 
 export default incomeRoutes;

@@ -21,7 +21,7 @@ import {
 const amenityRoutes = express.Router();
 amenityRoutes.use(protectRoute);
 
-amenityRoutes.get("/", isAdministrator, getAmenity);
+amenityRoutes.get("/", getAmenity);
 amenityRoutes.get("/:id", isAdministrator, getAmenityById);
 amenityRoutes.post(
   "/",

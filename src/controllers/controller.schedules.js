@@ -76,12 +76,42 @@ export const updateSchedule = async (req, res, next) => {
 
 export const deleteSchedule = async (req, res, next) => {
   try {
-    const deletedSchedule = await Schedule.findByIdAndDelete(req.params.id);
-    if (!deletedSchedule) {
-      return next(new ApiError(404, "Schedule not found"));
+    // 🆕 Accept array of schedule IDs from request body
+    const { scheduleIds } = req.body;
+    let schedulesToDelete = [];
+
+    if (Array.isArray(scheduleIds) && scheduleIds.length > 0) {
+      // ✅ Delete only selected schedules
+      schedulesToDelete = await Schedule.find({ _id: { $in: scheduleIds } });
+      if (schedulesToDelete.length === 0)
+        return next(new ApiError(404, "No valid schedules found"));
+    } else {
+      // ✅ Delete all schedules when array is empty or not sent
+      schedulesToDelete = await Schedule.find({});
+      if (schedulesToDelete.length === 0)
+        return next(new ApiError(404, "No schedules found to delete"));
     }
-    res.status(200).json({ message: "Schedule deleted successfully" });
+
+    // 🧹 Perform deletion
+    if (Array.isArray(scheduleIds) && scheduleIds.length > 0) {
+      await Schedule.deleteMany({ _id: { $in: scheduleIds } });
+    } else {
+      await Schedule.deleteMany({});
+    }
+
+    res.status(200).json({
+      success: true,
+      message:
+        Array.isArray(scheduleIds) && scheduleIds.length > 0
+          ? "Selected schedules deleted successfully"
+          : "All schedules deleted successfully",
+      deletedScheduleIds:
+        Array.isArray(scheduleIds) && scheduleIds.length > 0
+          ? scheduleIds
+          : schedulesToDelete.map((s) => s._id),
+    });
   } catch (error) {
+    console.error("❌ DeleteSchedule Error:", error);
     next(new ApiError(500, error.message));
   }
 };

@@ -22,7 +22,7 @@ const contactCampaignRoutes = express.Router();
 
 contactCampaignRoutes.use(protectRoute);
 
-contactCampaignRoutes.get("/", isAdministrator, getContactCampaign);
+contactCampaignRoutes.get("/", getContactCampaign);
 contactCampaignRoutes.get("/:id", isAdministrator, getContactCampaignById);
 contactCampaignRoutes.post(
   "/",

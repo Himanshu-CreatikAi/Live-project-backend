@@ -17,11 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const industryRoutes = express.Router();
 
 industryRoutes.use(protectRoute);
-industryRoutes.use(isAdministrator);
+
 industryRoutes.get("/", getIndustry);
-industryRoutes.get("/:id", getIndustryById);
-industryRoutes.post("/", validate(createIndustryValidator), createIndustry);
-industryRoutes.put("/:id", validate(updateIndustryValidator), updateIndustry);
-industryRoutes.delete("/:id", deleteIndustry);
+industryRoutes.get("/:id", isAdministrator, getIndustryById);
+industryRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createIndustryValidator),
+  createIndustry
+);
+industryRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateIndustryValidator),
+  updateIndustry
+);
+industryRoutes.delete("/:id", isAdministrator, deleteIndustry);
 
 export default industryRoutes;

@@ -12,13 +12,25 @@ import {
   createScheduleValidator,
   updateScheduleValidator,
 } from "../validators/schedulevalidator.js";
+import { isCityAdminOrAbove, protectRoute } from "../middlewares/auth.js";
 
 const scheduleRoutes = express.Router();
+scheduleRoutes.use(protectRoute);
 
 scheduleRoutes.get("/", getSchedule);
-scheduleRoutes.get("/:id", getScheduleById);
-scheduleRoutes.post("/", validate(createScheduleValidator), createSchedule);
-scheduleRoutes.put("/:id", validate(updateScheduleValidator), updateSchedule);
-scheduleRoutes.delete("/:id", deleteSchedule);
+scheduleRoutes.get("/:id", isCityAdminOrAbove, getScheduleById);
+scheduleRoutes.post(
+  "/",
+  validate(createScheduleValidator),
+  isCityAdminOrAbove,
+  createSchedule
+);
+scheduleRoutes.put(
+  "/:id",
+  validate(updateScheduleValidator),
+  isCityAdminOrAbove,
+  updateSchedule
+);
+scheduleRoutes.delete("/", isCityAdminOrAbove, deleteSchedule);
 
 export default scheduleRoutes;

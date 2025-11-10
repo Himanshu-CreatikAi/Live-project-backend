@@ -17,20 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const functionalAreaRoutes = express.Router();
 
 functionalAreaRoutes.use(protectRoute);
-functionalAreaRoutes.use(isAdministrator);
 
 functionalAreaRoutes.get("/", getFunctionalArea);
-functionalAreaRoutes.get("/:id", getFunctionalAreaById);
+functionalAreaRoutes.get("/:id", isAdministrator, getFunctionalAreaById);
 functionalAreaRoutes.post(
   "/",
+  isAdministrator,
   validate(createFunctionalAreaValidator),
   createFunctionalArea
 );
 functionalAreaRoutes.put(
   "/:id",
+  isAdministrator,
   validate(updateFunctionalAreaValidator),
   updateFunctionalArea
 );
-functionalAreaRoutes.delete("/:id", deleteFunctionalArea);
+functionalAreaRoutes.delete("/:id", isAdministrator, deleteFunctionalArea);
 
 export default functionalAreaRoutes;

@@ -19,13 +19,13 @@ const builderRoutes = express.Router();
 
 // Protected routes
 builderRoutes.use(protectRoute);
-builderRoutes.use(isAdministrator);
 
 builderRoutes.get("/", getBuilders);
-builderRoutes.get("/:id", getBuilderById);
+builderRoutes.get("/:id", isAdministrator, getBuilderById);
 
 builderRoutes.post(
   "/",
+  isAdministrator,
   upload.fields([{ name: "Image", maxCount: 5 }]),
   validate(createBuilderValidator),
   createBuilder
@@ -33,12 +33,13 @@ builderRoutes.post(
 
 builderRoutes.put(
   "/:id",
+  isAdministrator,
   upload.fields([{ name: "Image", maxCount: 5 }]),
   validate(updateBuilderValidator),
   updateBuilder
 );
 
-builderRoutes.delete("/:id", deleteBuilder);
-builderRoutes.delete("/", deleteAllBuilders);
+builderRoutes.delete("/:id", isAdministrator, deleteBuilder);
+builderRoutes.delete("/", isAdministrator, deleteAllBuilders);
 
 export default builderRoutes;

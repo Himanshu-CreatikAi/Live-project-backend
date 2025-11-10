@@ -17,12 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const facilitiesRoutes = express.Router();
 
 facilitiesRoutes.use(protectRoute);
-facilitiesRoutes.use(isAdministrator);
 
 facilitiesRoutes.get("/", getFacility);
-facilitiesRoutes.get("/:id", getFacilityById);
-facilitiesRoutes.post("/", validate(createFacilityValidator), createFacility);
-facilitiesRoutes.put("/:id", validate(updateFacilityValidator), updateFacility);
-facilitiesRoutes.delete("/:id", deleteFacility);
+facilitiesRoutes.get("/:id", isAdministrator, getFacilityById);
+facilitiesRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createFacilityValidator),
+  createFacility
+);
+facilitiesRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updateFacilityValidator),
+  updateFacility
+);
+facilitiesRoutes.delete("/:id", isAdministrator, deleteFacility);
 
 export default facilitiesRoutes;

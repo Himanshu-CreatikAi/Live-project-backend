@@ -17,12 +17,21 @@ import { isAdministrator, protectRoute } from "../middlewares/auth.js";
 const paymentRoutes = express.Router();
 
 paymentRoutes.use(protectRoute);
-paymentRoutes.use(isAdministrator);
 
 paymentRoutes.get("/", getPayment);
-paymentRoutes.get("/:id", getPaymentById);
-paymentRoutes.post("/", validate(createPaymentValidator), createPayment);
-paymentRoutes.put("/:id", validate(updatePaymentValidator), updatePayment);
-paymentRoutes.delete("/:id", deletePayment);
+paymentRoutes.get("/:id", isAdministrator, getPaymentById);
+paymentRoutes.post(
+  "/",
+  isAdministrator,
+  validate(createPaymentValidator),
+  createPayment
+);
+paymentRoutes.put(
+  "/:id",
+  isAdministrator,
+  validate(updatePaymentValidator),
+  updatePayment
+);
+paymentRoutes.delete("/:id", isAdministrator, deletePayment);
 
 export default paymentRoutes;
