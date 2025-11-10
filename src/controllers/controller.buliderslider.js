@@ -67,7 +67,7 @@ const getPublicIdFromUrl = (url) => {
   }
 };
 
-// ✅ UPDATE BUILDER (Update + Delete + Replace Images)
+// ✅ UPDATE BUILDER (Replace Images Instead of Appending)
 export const updateBuilder = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -93,7 +93,7 @@ export const updateBuilder = async (req, res, next) => {
 
     let Image = [...existingBuilder.Image];
 
-    // 🗑️ 1️⃣ Delete specific images
+    // 🗑️ 1️⃣ Delete specific images (if provided)
     if (updateData.removedImages?.length) {
       const deletions = updateData.removedImages.map((url) => {
         const publicId = getPublicIdFromUrl(url);
@@ -104,7 +104,7 @@ export const updateBuilder = async (req, res, next) => {
       Image = Image.filter((img) => !updateData.removedImages.includes(img));
     }
 
-    // 🗑️ 2️⃣ If Image field is sent as an empty array → delete all existing images
+    // 🗑️ 2️⃣ If Image field is an empty array → delete all existing images
     if (Array.isArray(updateData.Image) && updateData.Image.length === 0) {
       const deletions = existingBuilder.Image.map((url) => {
         const publicId = getPublicIdFromUrl(url);
@@ -115,8 +115,17 @@ export const updateBuilder = async (req, res, next) => {
       Image = [];
     }
 
-    // 🖼️ 3️⃣ Upload new images if provided
-    if (req.files?.Image) {
+    // 🖼️ 3️⃣ Replace existing images if new images are uploaded
+    if (req.files?.Image?.length) {
+      // First delete all old images
+      const deletions = existingBuilder.Image.map((url) => {
+        const publicId = getPublicIdFromUrl(url);
+        if (publicId)
+          return cloudinary.uploader.destroy(`builders/images/${publicId}`);
+      });
+      await Promise.all(deletions);
+
+      // Upload new ones
       const uploads = req.files.Image.map((file) =>
         cloudinary.uploader
           .upload(file.path, {
@@ -130,7 +139,7 @@ export const updateBuilder = async (req, res, next) => {
       );
 
       const newImgs = await Promise.all(uploads);
-      Image.push(...newImgs);
+      Image = newImgs; // ✅ Replace old array completely
     }
 
     updateData.Image = Image;
@@ -160,6 +169,7 @@ export const updateBuilder = async (req, res, next) => {
     next(new ApiError(500, error.message));
   }
 };
+
 // ✅ DELETE SINGLE BUILDER
 export const deleteBuilder = async (req, res, next) => {
   try {
