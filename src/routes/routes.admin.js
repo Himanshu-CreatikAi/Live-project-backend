@@ -44,7 +44,7 @@ adminRoutes.post(
 );
 
 // Get all admins (City Admin or Administrator)
-adminRoutes.get("/all", protectRoute, isCityAdminOrAbove, getAllAdmins);
+adminRoutes.get("/all", protectRoute, getAllAdmins);
 
 // Get single admin by ID
 adminRoutes.get("/:id", protectRoute, getAdminById);

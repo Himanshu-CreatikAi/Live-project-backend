@@ -415,7 +415,7 @@ export const getAllAdmins = async (req, res) => {
 
     let query = {};
 
-    // Apply filters based on current user role
+    // 🧠 Role-based filtering logic
     if (currentAdmin.role === "administrator") {
       // Administrator can see everyone
       if (role) query.role = role;
@@ -425,6 +425,9 @@ export const getAllAdmins = async (req, res) => {
       // City admin can only see users in their city
       query.city = currentAdmin.city;
       query.role = "user";
+    } else if (currentAdmin.role === "user") {
+      // Users can only see themselves
+      query._id = currentAdmin._id;
     } else {
       throw new ApiError(403, "Access denied");
     }
@@ -439,7 +442,7 @@ export const getAllAdmins = async (req, res) => {
       admins,
     });
   } catch (error) {
-    console.log(error.message);
+    console.log("❌ getAllAdmins Error:", error.message);
     if (error instanceof ApiError) {
       res
         .status(error.statusCode)
