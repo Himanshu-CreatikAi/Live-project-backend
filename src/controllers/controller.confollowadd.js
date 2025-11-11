@@ -34,6 +34,7 @@ export const createConFollowup = async (req, res, next) => {
 };
 
 // ✅ Get all contact follow-ups with pagination and filters
+// ✅ Get all contact follow-ups with pagination and full AssignTo details
 export const getConFollowups = async (req, res, next) => {
   try {
     const {
@@ -90,18 +91,48 @@ export const getConFollowups = async (req, res, next) => {
         }
       : null;
 
-    // ✅ Aggregation pipeline (like customer follow-up)
+    // ✅ Aggregation pipeline
     const pipeline = [];
 
+    // Follow-up filters
     if (Object.keys(followupFilters).length)
       pipeline.push({ $match: followupFilters });
 
+    // ✅ Lookup contact data with nested AssignTo admin details
     pipeline.push({
       $lookup: {
         from: "contacts",
         localField: "contact",
         foreignField: "_id",
         as: "contact",
+        pipeline: [
+          {
+            $lookup: {
+              from: "admins",
+              localField: "AssignTo",
+              foreignField: "_id",
+              as: "AssignTo",
+              pipeline: [
+                {
+                  $project: {
+                    _id: 1,
+                    name: 1,
+                    email: 1,
+                    role: 1,
+                    city: 1,
+                    status: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $unwind: {
+              path: "$AssignTo",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+        ],
       },
     });
 
@@ -109,6 +140,7 @@ export const getConFollowups = async (req, res, next) => {
       $unwind: { path: "$contact", preserveNullAndEmptyArrays: false },
     });
 
+    // ✅ Apply contact and keyword filters
     const combinedMatch = {
       ...(Object.keys(contactFilters).length ? contactFilters : {}),
       ...(keywordMatch ? keywordMatch : {}),
@@ -116,6 +148,7 @@ export const getConFollowups = async (req, res, next) => {
     if (Object.keys(combinedMatch).length)
       pipeline.push({ $match: combinedMatch });
 
+    // ✅ Sort & paginate
     pipeline.push({ $sort: { createdAt: -1 } });
 
     pipeline.push({
@@ -126,6 +159,7 @@ export const getConFollowups = async (req, res, next) => {
     });
 
     const aggResult = await ConFollowup.aggregate(pipeline);
+
     const metadata = aggResult[0]?.metadata?.[0] || { total: 0 };
     const total = metadata.total || 0;
     const data = aggResult[0]?.data || [];

@@ -101,35 +101,46 @@ export const getFollowups = async (req, res, next) => {
     if (Object.keys(followupFilters).length)
       pipeline.push({ $match: followupFilters });
 
-    // ✅ Lookup customer data
+    // ✅ Lookup customer data with nested AssignTo admin details
     pipeline.push({
       $lookup: {
         from: "customers",
         localField: "customer",
         foreignField: "_id",
         as: "customer",
+        pipeline: [
+          {
+            $lookup: {
+              from: "admins",
+              localField: "AssignTo",
+              foreignField: "_id",
+              as: "AssignTo",
+              pipeline: [
+                {
+                  $project: {
+                    _id: 1,
+                    name: 1,
+                    email: 1,
+                    role: 1,
+                    city: 1,
+                    status: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $unwind: {
+              path: "$AssignTo",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+        ],
       },
     });
 
     pipeline.push({
       $unwind: { path: "$customer", preserveNullAndEmptyArrays: false },
-    });
-
-    // ✅ Lookup AssignTo (Admin) details for the customer
-    pipeline.push({
-      $lookup: {
-        from: "admins",
-        localField: "customer.AssignTo",
-        foreignField: "_id",
-        as: "customer.AssignToDetails",
-      },
-    });
-
-    pipeline.push({
-      $unwind: {
-        path: "$customer.AssignToDetails",
-        preserveNullAndEmptyArrays: true, // in case AssignTo is null
-      },
     });
 
     // ✅ Apply customer and keyword filters
