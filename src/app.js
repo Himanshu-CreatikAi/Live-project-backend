@@ -51,7 +51,11 @@ app.use(helmet());
 // CORS
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://creatik-it.vercel.app"],
+    origin: [
+      "http://localhost:3000",
+      "https://creatik-it.vercel.app",
+      "https://creatik-crm.vercel.app",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
