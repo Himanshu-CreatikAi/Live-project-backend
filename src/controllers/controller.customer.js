@@ -3,6 +3,9 @@ import Customer from "../models/model.customer.js";
 import Admin from "../models/model.admin.js";
 import ApiError from "../utils/ApiError.js";
 import fs from "fs";
+import Campaign from "../models/model.campaign.js";
+import Type from "../models/model.types.js";
+import SubType from "../models/model.subType.js";
 
 // ✅ GET CUSTOMERS (Role-based + Filter)
 export const getCustomer = async (req, res, next) => {
@@ -170,7 +173,32 @@ export const getCustomerById = async (req, res, next) => {
     if (admin.role === "city_admin" && customer.City !== admin.city)
       return next(new ApiError(403, "Access denied"));
 
-    res.status(200).json(customer);
+    // 🧩 Look up Campaign and Type and subtype using their names
+    const campaignDoc = await Campaign.findOne({
+      Name: customer.Campaign,
+    }).select("_id Name");
+    const customerTypeDoc = await Type.findOne({
+      Name: customer.CustomerType,
+    }).select("_id Name");
+    const customerSubTypeDoc = await SubType.findOne({
+      Name: customer.CustomerSubType,
+    }).select("_id Name");
+
+    // 🧠 Prepare structured response
+    const response = {
+      ...customer.toObject(),
+      Campaign: campaignDoc
+        ? { _id: campaignDoc._id, Name: campaignDoc.Name }
+        : { _id: null, Name: contact.Campaign || "" },
+      CustomerSubType: customerSubTypeDoc
+        ? { _id: customerSubTypeDoc._id, Name: customerSubTypeDoc.Name }
+        : { _id: null, Name: customer.CustomerSubType || "" },
+      CustomerType: customerTypeDoc
+        ? { _id: customerTypeDoc._id, Name: customerTypeDoc.Name }
+        : { _id: null, Name: customer.CustomerType || "" },
+    };
+
+    res.status(200).json(response);
   } catch (error) {
     next(new ApiError(500, error.message));
   }

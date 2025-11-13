@@ -1,5 +1,9 @@
 // controllers/contact.controller.js
+
 import Contact from "../models/model.contact.js";
+import Campaign from "../models/model.campaign.js";
+import ContactType from "../models/model.contacttype.js";
+
 import Admin from "../models/model.admin.js";
 import ApiError from "../utils/ApiError.js";
 
@@ -165,10 +169,11 @@ export const bulkAssignCityContacts = async (req, res, next) => {
   }
 };
 
-// ✅ GET SINGLE CONTACT (Role-based)
 export const getContactById = async (req, res, next) => {
   try {
     const admin = req.admin;
+
+    // 🟢 Find the contact and populate the assigned admin
     const contact = await Contact.findById(req.params.id).populate(
       "AssignTo",
       "name email role city"
@@ -176,15 +181,36 @@ export const getContactById = async (req, res, next) => {
 
     if (!contact) return next(new ApiError(404, "Contact not found"));
 
+    // 🔐 Role-based access checks
     if (
       admin.role === "user" &&
-      contact.AssignTo?.toString() !== admin._id.toString()
+      contact.AssignTo?._id?.toString() !== admin._id.toString()
     )
       return next(new ApiError(403, "Access denied"));
+
     if (admin.role === "city_admin" && contact.City !== admin.city)
       return next(new ApiError(403, "Access denied"));
 
-    res.status(200).json(contact);
+    // 🧩 Look up Campaign and ContactType using their names
+    const campaignDoc = await Campaign.findOne({
+      Name: contact.Campaign,
+    }).select("_id Name");
+    const contactTypeDoc = await ContactType.findOne({
+      Name: contact.ContactType,
+    }).select("_id Name");
+
+    // 🧠 Prepare structured response
+    const response = {
+      ...contact.toObject(),
+      Campaign: campaignDoc
+        ? { _id: campaignDoc._id, Name: campaignDoc.Name }
+        : { _id: null, Name: contact.Campaign || "" },
+      ContactType: contactTypeDoc
+        ? { _id: contactTypeDoc._id, Name: contactTypeDoc.Name }
+        : { _id: null, Name: contact.ContactType || "" },
+    };
+
+    res.status(200).json(response);
   } catch (error) {
     next(new ApiError(500, error.message));
   }
