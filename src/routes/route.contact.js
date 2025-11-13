@@ -20,7 +20,10 @@ import {
 
 import { isCityAdminOrAbove, protectRoute } from "../middlewares/auth.js";
 import customerRoutes from "./route.customer.js";
-import { importContacts } from "../controllers/contactImportController.js";
+import {
+  importContacts,
+  readContactHeaders,
+} from "../controllers/contactImportController.js";
 import { uploadExcel } from "../middlewares/uploadExcel.js";
 
 const contactRoutes = express.Router();
@@ -48,6 +51,13 @@ contactRoutes.post(
   isCityAdminOrAbove,
   uploadExcel.single("file"),
   importContacts
+);
+
+contactRoutes.post(
+  "/import/headers",
+  isCityAdminOrAbove,
+  uploadExcel.single("file"),
+  readContactHeaders
 );
 
 export default contactRoutes;
