@@ -38,18 +38,31 @@ const keyMap = {
   status: "Status",
 };
 
-// ✅ Helper: normalize Excel headers using both auto + manual maps
-// Clean mobile number
+// ✅ Clean one number
 const cleanNumber = (num) => {
   if (!num) return "";
   return String(num)
-    .replace(/[^\d]/g, "")
-    .replace(/^91/, "")
-    .replace(/^0+/, "")
+    .replace(/[^\d]/g, "") // keep digits only
+    .replace(/^91/, "") // remove India code
+    .replace(/^0+/, "") // remove leading zeroes
     .trim();
 };
 
-// Normalize row keys
+// ✅ Extract, split, clean & merge multiple phone numbers
+const extractNumbers = (raw) => {
+  if (!raw) return "";
+
+  const nums = String(raw)
+    .split(/[,/|;:-]/) // split on all separators
+    .map((n) => cleanNumber(n))
+    .filter((n) => n.length >= 10); // valid numbers only
+
+  const unique = [...new Set(nums)]; // remove duplicates
+
+  return unique.join(","); // return comma-separated list
+};
+
+// Normalize headers
 const normalizeKeys = (row, manualMap = {}) => {
   const normalized = {};
   for (const [key, value] of Object.entries(row)) {
@@ -60,7 +73,7 @@ const normalizeKeys = (row, manualMap = {}) => {
 
     let finalValue = value;
 
-    // ⭐ Clean mobile-related fields
+    // ⭐ Auto-clean mobile related fields
     if (
       [
         "contactno",
@@ -71,7 +84,7 @@ const normalizeKeys = (row, manualMap = {}) => {
         "phone number",
       ].includes(lowerKey)
     ) {
-      finalValue = cleanNumber(value);
+      finalValue = extractNumbers(value); // ⭐ extract multiple numbers
     }
 
     normalized[normalizedKey] = finalValue;
@@ -118,12 +131,13 @@ export const importContacts = async (req, res, next) => {
       normalizeKeys(row, manualMap)
     );
 
+    // ⭐ Format contacts with multi-number support
     const formattedContacts = normalizedData
       .filter((row) => row.ContactNo && row.Name)
       .map((row) => {
         return {
           ...row,
-          ContactNo: cleanNumber(row.ContactNo), // ⭐ Safety clean
+          ContactNo: extractNumbers(row.ContactNo), // ⭐ final list
           Campaign,
           ContactType,
           Range,
@@ -138,9 +152,9 @@ export const importContacts = async (req, res, next) => {
       return next(new ApiError(400, "No valid contact records found"));
     }
 
-    // Remove duplicates
+    // ⭐ Duplicate prevention — works for comma-separated list
     const contactNumbers = formattedContacts
-      .map((c) => cleanNumber(c.ContactNo))
+      .map((c) => c.ContactNo)
       .filter(Boolean);
 
     const existingContacts = await Contact.find({
@@ -161,7 +175,7 @@ export const importContacts = async (req, res, next) => {
       ? await Contact.insertMany(uniqueContacts, { ordered: false })
       : [];
 
-    // Summary export untouched...
+    // ⭐ Summary export untouched...
   } catch (error) {
     if (req.file?.path) fs.unlink(req.file.path, () => {});
     next(new ApiError(500, error.message));

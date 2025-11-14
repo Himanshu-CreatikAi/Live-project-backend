@@ -44,15 +44,27 @@ const cleanNumber = (num) => {
     .replace(/[^0-9]/g, "");
 };
 
+// 📌 Extract, split & clean multiple phone numbers
+const extractNumbers = (raw) => {
+  if (!raw) return "";
+
+  const nums = String(raw)
+    .split(/[,/|;-]/) // split by comma, slash, dash, semicolon, pipe
+    .map((n) => cleanNumber(n))
+    .filter((n) => n.length >= 10); // keep only valid numbers
+
+  // remove duplicates
+  const unique = [...new Set(nums)];
+
+  return unique.join(","); // final comma list
+};
+
 const normalizeKeys = (row, manualMap = {}) => {
   const normalized = {};
   for (const [key, value] of Object.entries(row)) {
     const lowerKey = key.trim().toLowerCase();
 
-    // 1️⃣ Manual map (highest priority)
     const manualKey = manualMap[lowerKey];
-
-    // 2️⃣ Auto key map (fallback)
     const normalizedKey = manualKey || keyMap[lowerKey] || key;
 
     normalized[normalizedKey] = value;
@@ -65,7 +77,7 @@ export const importCustomers = async (req, res, next) => {
     const admin = req.admin;
     const { Campaign, CustomerType, CustomerSubType, fieldMapping } = req.body;
 
-    // ✅ 1️⃣ Validate required fields
+    // 1️⃣ Validate required fields
     if (!Campaign || !CustomerType || !CustomerSubType) {
       if (req.file?.path) fs.unlink(req.file.path, () => {});
       return next(
@@ -80,7 +92,7 @@ export const importCustomers = async (req, res, next) => {
       return next(new ApiError(400, "No file uploaded"));
     }
 
-    // ✅ 2️⃣ Parse manual field mapping (JSON)
+    // 2️⃣ Parse manual field mapping
     let manualMap = {};
     if (fieldMapping) {
       try {
@@ -90,7 +102,7 @@ export const importCustomers = async (req, res, next) => {
       }
     }
 
-    // ✅ 3️⃣ Read Excel/CSV file
+    // 3️⃣ Read Excel/CSV file
     const workbook = xlsx.readFile(req.file.path);
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -100,17 +112,19 @@ export const importCustomers = async (req, res, next) => {
       return next(new ApiError(400, "Excel file is empty"));
     }
 
-    // ✅ 4️⃣ Normalize headers using both maps
+    // 4️⃣ Normalize header keys
     const normalizedData = sheetData.map((row) =>
       normalizeKeys(row, manualMap)
     );
 
-    // ✅ 5️⃣ Filter + format + clean numbers
+    // 5️⃣ Clean + format customers with multi-number support
     const formattedCustomers = normalizedData
       .map((row) => {
+        const cleanedList = extractNumbers(row.ContactNumber);
+
         return {
           ...row,
-          ContactNumber: cleanNumber(row.ContactNumber), // ✨ CLEAN NUMBER HERE
+          ContactNumber: cleanedList, // ⭐ CLEAN MULTI NUMBER LIST
           Campaign,
           CustomerType,
           CustomerSubType,
@@ -126,9 +140,9 @@ export const importCustomers = async (req, res, next) => {
       return next(new ApiError(400, "No valid customer records found"));
     }
 
-    // ✅ 6️⃣ Prevent duplicates — clean numbers before check
+    // 6️⃣ Duplicate check using cleaned list
     const contactNumbers = formattedCustomers
-      .map((c) => cleanNumber(c.ContactNumber)) // ✨ CLEAN HERE TOO
+      .map((c) => c.ContactNumber)
       .filter(Boolean);
 
     const existingCustomers = await Customer.find({
@@ -136,23 +150,23 @@ export const importCustomers = async (req, res, next) => {
     }).select("ContactNumber");
 
     const existingNumbers = new Set(
-      existingCustomers.map((c) => cleanNumber(c.ContactNumber)) // ✨ CLEAN DB VALUES ALSO
+      existingCustomers.map((c) => c.ContactNumber)
     );
 
     const uniqueCustomers = formattedCustomers.filter(
-      (c) => !existingNumbers.has(cleanNumber(c.ContactNumber))
+      (c) => !existingNumbers.has(c.ContactNumber)
     );
 
     const duplicateCustomers = formattedCustomers.filter((c) =>
-      existingNumbers.has(cleanNumber(c.ContactNumber))
+      existingNumbers.has(c.ContactNumber)
     );
 
-    // ✅ 7️⃣ Insert unique customers
+    // 7️⃣ Insert unique customers
     const inserted = uniqueCustomers.length
       ? await Customer.insertMany(uniqueCustomers, { ordered: false })
       : [];
 
-    // ✅ 8️⃣ Generate Summary CSV
+    // 8️⃣ Summary CSV
     const summaryDir = path.join(__dirname, "../uploads/summaries");
     if (!fs.existsSync(summaryDir))
       fs.mkdirSync(summaryDir, { recursive: true });
@@ -180,10 +194,10 @@ export const importCustomers = async (req, res, next) => {
 
     xlsx.writeFile(summarySheet, summaryFile);
 
-    // ✅ 9️⃣ Cleanup
+    // 9️⃣ Cleanup
     fs.unlink(req.file.path, () => {});
 
-    // ✅ 🔟 Response
+    // 🔟 Response
     res.status(200).json({
       success: true,
       message: `${inserted.length} customers imported successfully. ${duplicateCustomers.length} duplicates skipped.`,
