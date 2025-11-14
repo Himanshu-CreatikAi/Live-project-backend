@@ -8,6 +8,61 @@ import Type from "../models/model.types.js";
 import SubType from "../models/model.subType.js";
 
 // ✅ GET CUSTOMERS (Role-based + Filter)
+// export const getCustomer = async (req, res, next) => {
+//   try {
+//     const admin = req.admin;
+//     const filter = {};
+
+//     if (admin.role === "city_admin") filter.City = admin.city;
+//     else if (admin.role === "user") filter.AssignTo = admin._id;
+
+//     const {
+//       Campaign,
+//       PropertyType,
+//       StatusType,
+//       City,
+//       Location,
+//       Keyword,
+//       StartDate,
+//       EndDate,
+//       Limit,
+//       sort,
+//     } = req.query;
+
+//     if (Campaign) filter.Campaign = { $regex: Campaign.trim(), $options: "i" };
+//     if (PropertyType)
+//       filter.CustomerSubType = { $regex: PropertyType.trim(), $options: "i" };
+//     if (StatusType)
+//       filter.Verified = { $regex: StatusType.trim(), $options: "i" };
+//     if (City) filter.City = { $regex: City.trim(), $options: "i" };
+//     if (Location) filter.Location = { $regex: Location.trim(), $options: "i" };
+//     if (Keyword) {
+//       filter.$or = [
+//         { customerName: { $regex: Keyword.trim(), $options: "i" } },
+//         { Email: { $regex: Keyword.trim(), $options: "i" } },
+//         { Description: { $regex: Keyword.trim(), $options: "i" } },
+//         { Other: { $regex: Keyword.trim(), $options: "i" } },
+//       ];
+//     }
+//     if (StartDate && EndDate) {
+//       filter.createdAt = { $gte: new Date(StartDate), $lte: new Date(EndDate) };
+//     }
+
+//     const sortField = "createdAt";
+//     const sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
+
+//     let query = Customer.find(filter)
+//       .populate("AssignTo", "name email role city")
+//       .sort({ [sortField]: sortOrder });
+
+//     if (Limit) query = query.limit(Number(Limit));
+
+//     const customers = await query;
+//     res.status(200).json(customers);
+//   } catch (error) {
+//     next(new ApiError(500, error.message));
+//   }
+// };
 export const getCustomer = async (req, res, next) => {
   try {
     const admin = req.admin;
@@ -29,13 +84,48 @@ export const getCustomer = async (req, res, next) => {
       sort,
     } = req.query;
 
-    if (Campaign) filter.Campaign = { $regex: Campaign.trim(), $options: "i" };
-    if (PropertyType)
-      filter.CustomerSubType = { $regex: PropertyType.trim(), $options: "i" };
-    if (StatusType)
-      filter.Verified = { $regex: StatusType.trim(), $options: "i" };
+    // ------------------------
+    // 1️⃣ CAMPAIGN FILTER
+    // ------------------------
+    if (Campaign) {
+      const camp = await Campaign.findOne({
+        Name: { $regex: Campaign.trim(), $options: "i" },
+      });
+
+      if (camp) filter.Campaign = camp._id;
+      else filter.Campaign = null; // no match → return empty
+    }
+
+    // ------------------------
+    // 2️⃣ TYPE FILTER (CustomerType)
+    // ------------------------
+    if (PropertyType) {
+      const type = await CustomerType.findOne({
+        Name: { $regex: PropertyType.trim(), $options: "i" },
+      });
+
+      if (type) filter.CustomerType = type._id;
+      else filter.CustomerType = null;
+    }
+
+    // ------------------------
+    // 3️⃣ SUB-TYPE FILTER
+    // ------------------------
+    if (StatusType) {
+      const sub = await CustomerSubType.findOne({
+        Name: { $regex: StatusType.trim(), $options: "i" },
+      });
+
+      if (sub) filter.CustomerSubType = sub._id;
+      else filter.CustomerSubType = null;
+    }
+
+    // ------------------------
+    // Other Filters (string)
+    // ------------------------
     if (City) filter.City = { $regex: City.trim(), $options: "i" };
     if (Location) filter.Location = { $regex: Location.trim(), $options: "i" };
+
     if (Keyword) {
       filter.$or = [
         { customerName: { $regex: Keyword.trim(), $options: "i" } },
@@ -44,20 +134,28 @@ export const getCustomer = async (req, res, next) => {
         { Other: { $regex: Keyword.trim(), $options: "i" } },
       ];
     }
+
     if (StartDate && EndDate) {
       filter.createdAt = { $gte: new Date(StartDate), $lte: new Date(EndDate) };
     }
 
+    // ------------------------
+    // Sorting & Pagination
+    // ------------------------
     const sortField = "createdAt";
     const sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
 
     let query = Customer.find(filter)
       .populate("AssignTo", "name email role city")
+      .populate("Campaign", "Name") // populate ref
+      .populate("CustomerType", "Name")
+      .populate("CustomerSubType", "Name")
       .sort({ [sortField]: sortOrder });
 
     if (Limit) query = query.limit(Number(Limit));
 
     const customers = await query;
+
     res.status(200).json(customers);
   } catch (error) {
     next(new ApiError(500, error.message));

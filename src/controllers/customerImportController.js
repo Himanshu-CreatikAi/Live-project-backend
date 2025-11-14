@@ -36,6 +36,14 @@ const keyMap = {
 };
 
 // ✅ Helper: normalize Excel headers using auto + manual map
+// 📌 Clean number function
+const cleanNumber = (num) => {
+  if (!num) return "";
+  return String(num)
+    .trim()
+    .replace(/[^0-9]/g, "");
+};
+
 const normalizeKeys = (row, manualMap = {}) => {
   const normalized = {};
   for (const [key, value] of Object.entries(row)) {
@@ -72,7 +80,7 @@ export const importCustomers = async (req, res, next) => {
       return next(new ApiError(400, "No file uploaded"));
     }
 
-    // ✅ 2️⃣ Parse manual field mapping (JSON from frontend)
+    // ✅ 2️⃣ Parse manual field mapping (JSON)
     let manualMap = {};
     if (fieldMapping) {
       try {
@@ -97,27 +105,30 @@ export const importCustomers = async (req, res, next) => {
       normalizeKeys(row, manualMap)
     );
 
-    // ✅ 5️⃣ Filter and format valid customers
+    // ✅ 5️⃣ Filter + format + clean numbers
     const formattedCustomers = normalizedData
-      .filter((row) => row.ContactNumber && row.customerName)
-      .map((row) => ({
-        ...row,
-        Campaign,
-        CustomerType,
-        CustomerSubType,
-        CreatedBy: admin._id,
-        City: admin.city || row.City || "",
-        isImported: true,
-      }));
+      .map((row) => {
+        return {
+          ...row,
+          ContactNumber: cleanNumber(row.ContactNumber), // ✨ CLEAN NUMBER HERE
+          Campaign,
+          CustomerType,
+          CustomerSubType,
+          CreatedBy: admin._id,
+          City: admin.city || row.City || "",
+          isImported: true,
+        };
+      })
+      .filter((row) => row.ContactNumber && row.customerName);
 
     if (!formattedCustomers.length) {
       fs.unlink(req.file.path, () => {});
       return next(new ApiError(400, "No valid customer records found"));
     }
 
-    // ✅ 6️⃣ Prevent duplicates
+    // ✅ 6️⃣ Prevent duplicates — clean numbers before check
     const contactNumbers = formattedCustomers
-      .map((c) => c.ContactNumber)
+      .map((c) => cleanNumber(c.ContactNumber)) // ✨ CLEAN HERE TOO
       .filter(Boolean);
 
     const existingCustomers = await Customer.find({
@@ -125,15 +136,15 @@ export const importCustomers = async (req, res, next) => {
     }).select("ContactNumber");
 
     const existingNumbers = new Set(
-      existingCustomers.map((c) => c.ContactNumber)
+      existingCustomers.map((c) => cleanNumber(c.ContactNumber)) // ✨ CLEAN DB VALUES ALSO
     );
 
     const uniqueCustomers = formattedCustomers.filter(
-      (c) => !existingNumbers.has(c.ContactNumber)
+      (c) => !existingNumbers.has(cleanNumber(c.ContactNumber))
     );
 
     const duplicateCustomers = formattedCustomers.filter((c) =>
-      existingNumbers.has(c.ContactNumber)
+      existingNumbers.has(cleanNumber(c.ContactNumber))
     );
 
     // ✅ 7️⃣ Insert unique customers
@@ -141,7 +152,7 @@ export const importCustomers = async (req, res, next) => {
       ? await Customer.insertMany(uniqueCustomers, { ordered: false })
       : [];
 
-    // ✅ 8️⃣ Generate Summary CSV (imported + duplicates)
+    // ✅ 8️⃣ Generate Summary CSV
     const summaryDir = path.join(__dirname, "../uploads/summaries");
     if (!fs.existsSync(summaryDir))
       fs.mkdirSync(summaryDir, { recursive: true });
@@ -169,7 +180,7 @@ export const importCustomers = async (req, res, next) => {
 
     xlsx.writeFile(summarySheet, summaryFile);
 
-    // ✅ 9️⃣ Cleanup uploaded file
+    // ✅ 9️⃣ Cleanup
     fs.unlink(req.file.path, () => {});
 
     // ✅ 🔟 Response
