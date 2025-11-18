@@ -87,42 +87,25 @@ export const getCustomer = async (req, res, next) => {
     // ------------------------
     // 1️⃣ CAMPAIGN FILTER
     // ------------------------
-    if (Campaign) {
-      const camp = await Campaign.findOne({
-        Name: { $regex: Campaign.trim(), $options: "i" },
-      });
-
-      if (camp) filter.Campaign = camp._id;
-      else filter.Campaign = null; // no match → return empty
-    }
+    if (Campaign) filter.Campaign = { $regex: Campaign.trim(), $options: "i" };
 
     // ------------------------
     // 2️⃣ TYPE FILTER (CustomerType)
     // ------------------------
     if (PropertyType) {
-      const type = await CustomerType.findOne({
+      const type = await SubType.findOne({
         Name: { $regex: PropertyType.trim(), $options: "i" },
       });
 
-      if (type) filter.CustomerType = type._id;
-      else filter.CustomerType = null;
-    }
-
-    // ------------------------
-    // 3️⃣ SUB-TYPE FILTER
-    // ------------------------
-    if (StatusType) {
-      const sub = await CustomerSubType.findOne({
-        Name: { $regex: StatusType.trim(), $options: "i" },
-      });
-
-      if (sub) filter.CustomerSubType = sub._id;
+      if (type) filter.CustomerSubType = type._id;
       else filter.CustomerSubType = null;
     }
 
     // ------------------------
     // Other Filters (string)
     // ------------------------
+    if (StatusType)
+      filter.Verified = { $regex: StatusType.trim(), $options: "i" };
     if (City) filter.City = { $regex: City.trim(), $options: "i" };
     if (Location) filter.Location = { $regex: Location.trim(), $options: "i" };
 
@@ -287,7 +270,7 @@ export const getCustomerById = async (req, res, next) => {
       ...customer.toObject(),
       Campaign: campaignDoc
         ? { _id: campaignDoc._id, Name: campaignDoc.Name }
-        : { _id: null, Name: contact.Campaign || "" },
+        : { _id: null, Name: customer.Campaign || "" },
       CustomerSubType: customerSubTypeDoc
         ? { _id: customerSubTypeDoc._id, Name: customerSubTypeDoc.Name }
         : { _id: null, Name: customer.CustomerSubType || "" },

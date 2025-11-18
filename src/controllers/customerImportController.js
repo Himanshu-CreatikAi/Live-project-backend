@@ -75,59 +75,59 @@ const normalizeKeys = (row, manualMap = {}) => {
 export const importCustomers = async (req, res, next) => {
   try {
     const admin = req.admin;
-    const { Campaign, CustomerType, CustomerSubType, fieldMapping } = req.body;
+    const { fieldMapping } = req.body;
 
-    // 1️⃣ Validate required fields
-    if (!Campaign || !CustomerType || !CustomerSubType) {
-      if (req.file?.path) fs.unlink(req.file.path, () => {});
-      return next(
-        new ApiError(
-          400,
-          "Campaign, CustomerType, and CustomerSubType are required"
-        )
-      );
+    // 1️⃣ Manual field mapping is REQUIRED now
+    if (!fieldMapping) {
+      return next(new ApiError(400, "fieldMapping is required"));
     }
 
+    // ⭐ Convert fieldMapping keys to lowercase to match Excel normalized keys
+    let manualMap = {};
+    try {
+      const parsedMap = JSON.parse(fieldMapping);
+
+      manualMap = {};
+      Object.keys(parsedMap).forEach((key) => {
+        manualMap[key.trim().toLowerCase()] = parsedMap[key];
+      });
+    } catch (err) {
+      return next(new ApiError(400, "Invalid fieldMapping JSON format"));
+    }
+
+    // 2️⃣ File required
     if (!req.file) {
       return next(new ApiError(400, "No file uploaded"));
     }
 
-    // 2️⃣ Parse manual field mapping
-    let manualMap = {};
-    if (fieldMapping) {
-      try {
-        manualMap = JSON.parse(fieldMapping);
-      } catch (err) {
-        return next(new ApiError(400, "Invalid fieldMapping JSON format"));
-      }
-    }
-
-    // 3️⃣ Read Excel/CSV file
+    // 3️⃣ Read Excel file
     const workbook = xlsx.readFile(req.file.path);
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
     if (!sheetData.length) {
-      fs.unlink(req.file.path, () => {});
       return next(new ApiError(400, "Excel file is empty"));
     }
 
-    // 4️⃣ Normalize header keys
+    // 4️⃣ Normalize each row by manual map ONLY (auto-map removed)
     const normalizedData = sheetData.map((row) =>
       normalizeKeys(row, manualMap)
     );
 
-    // 5️⃣ Clean + format customers with multi-number support
+    // 5️⃣ Extract fields from Excel after mapping
     const formattedCustomers = normalizedData
       .map((row) => {
         const cleanedList = extractNumbers(row.ContactNumber);
 
         return {
           ...row,
-          ContactNumber: cleanedList, // ⭐ CLEAN MULTI NUMBER LIST
-          Campaign,
-          CustomerType,
-          CustomerSubType,
+          ContactNumber: cleanedList,
+
+          // ⭐ These now come from Excel through manualMap mapping
+          Campaign: row.Campaign || "",
+          CustomerType: row.CustomerType || "",
+          CustomerSubType: row.CustomerSubType || "", // optional
+
           CreatedBy: admin._id,
           City: admin.city || row.City || "",
           isImported: true,
@@ -136,22 +136,16 @@ export const importCustomers = async (req, res, next) => {
       .filter((row) => row.ContactNumber && row.customerName);
 
     if (!formattedCustomers.length) {
-      fs.unlink(req.file.path, () => {});
       return next(new ApiError(400, "No valid customer records found"));
     }
 
-    // 6️⃣ Duplicate check using cleaned list
-    const contactNumbers = formattedCustomers
-      .map((c) => c.ContactNumber)
-      .filter(Boolean);
-
-    const existingCustomers = await Customer.find({
+    // 6️⃣ Duplicate check
+    const contactNumbers = formattedCustomers.map((c) => c.ContactNumber);
+    const existing = await Customer.find({
       ContactNumber: { $in: contactNumbers },
     }).select("ContactNumber");
 
-    const existingNumbers = new Set(
-      existingCustomers.map((c) => c.ContactNumber)
-    );
+    const existingNumbers = new Set(existing.map((c) => c.ContactNumber));
 
     const uniqueCustomers = formattedCustomers.filter(
       (c) => !existingNumbers.has(c.ContactNumber)
@@ -161,12 +155,12 @@ export const importCustomers = async (req, res, next) => {
       existingNumbers.has(c.ContactNumber)
     );
 
-    // 7️⃣ Insert unique customers
+    // 7️⃣ Insert new customers
     const inserted = uniqueCustomers.length
       ? await Customer.insertMany(uniqueCustomers, { ordered: false })
       : [];
 
-    // 8️⃣ Summary CSV
+    // 8️⃣ Summary file
     const summaryDir = path.join(__dirname, "../uploads/summaries");
     if (!fs.existsSync(summaryDir))
       fs.mkdirSync(summaryDir, { recursive: true });
@@ -197,7 +191,6 @@ export const importCustomers = async (req, res, next) => {
     // 9️⃣ Cleanup
     fs.unlink(req.file.path, () => {});
 
-    // 🔟 Response
     res.status(200).json({
       success: true,
       message: `${inserted.length} customers imported successfully. ${duplicateCustomers.length} duplicates skipped.`,
@@ -212,7 +205,6 @@ export const importCustomers = async (req, res, next) => {
   }
 };
 
-// ✅ Extract headers from Excel/CSV
 export const readCustomerHeaders = async (req, res, next) => {
   try {
     if (!req.file) return next(new ApiError(400, "No file uploaded"));
