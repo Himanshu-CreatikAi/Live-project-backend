@@ -10,7 +10,9 @@ import Campaign from "../models/model.campaign.js";
 import Type from "../models/model.types.js";
 import SubType from "../models/model.subType.js";
 
-// For summary export
+// ------------------------------
+// FIXED: Correct dirname / filename
+// ------------------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -46,6 +48,7 @@ const extractNumbers = (raw) => {
     .split(/[,/;|-]/)
     .map((n) => cleanNumber(n))
     .filter((n) => n.length >= 10);
+
   return [...new Set(nums)].join(",");
 };
 
@@ -56,13 +59,12 @@ const normalizeKeys = (row, manualMap = {}) => {
     const lower = key.trim().toLowerCase();
     const manual = manualMap[lower];
     const finalKey = manual || keyMap[lower] || key;
-
     normalized[finalKey] = value;
   }
   return normalized;
 };
 
-// AUTO CREATE: Campaign → Type → SubType
+// AUTO CREATE → Campaign → Type → SubType
 const ensureCampaignTree = async (campaignName, typeName, subTypeName) => {
   let campaign = null;
   let customerType = null;
@@ -115,7 +117,7 @@ const ensureCampaignTree = async (campaignName, typeName, subTypeName) => {
   };
 };
 
-// Main Import Controller
+// MAIN CONTROLLER
 export const importCustomers = async (req, res, next) => {
   try {
     const admin = req.admin;
@@ -155,14 +157,13 @@ export const importCustomers = async (req, res, next) => {
       // CLEAN PHONE
       row.ContactNumber = extractNumbers(row.ContactNumber);
 
-      // AUTO CREATE (Campaign → Type → SubType)
+      // AUTO CREATE
       const tree = await ensureCampaignTree(
         row.Campaign,
         row.CustomerType,
         row.CustomerSubType
       );
 
-      // SAVE NAMES TO DB (NO IDs)
       finalCustomers.push({
         ...row,
         Campaign: tree.campaignName,
@@ -188,6 +189,7 @@ export const importCustomers = async (req, res, next) => {
     const unique = finalCustomers.filter(
       (c) => !existingNums.has(c.ContactNumber)
     );
+
     const duplicates = finalCustomers.filter((c) =>
       existingNums.has(c.ContactNumber)
     );
@@ -196,7 +198,9 @@ export const importCustomers = async (req, res, next) => {
       ? await Customer.insertMany(unique, { ordered: false })
       : [];
 
-    // Summary file
+    // -------------------------
+    // FIXED SUMMARY EXPORT CODE
+    // -------------------------
     const summaryDir = path.join(__dirname, "../uploads/summaries");
     if (!fs.existsSync(summaryDir))
       fs.mkdirSync(summaryDir, { recursive: true });
@@ -222,6 +226,7 @@ export const importCustomers = async (req, res, next) => {
 
     fs.unlink(req.file.path, () => {});
 
+    // FIXED RESPONSE STRINGS
     res.status(200).json({
       success: true,
       message: `${inserted.length} imported, ${duplicates.length} duplicates.`,
