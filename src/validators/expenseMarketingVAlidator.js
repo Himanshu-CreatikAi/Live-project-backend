@@ -5,8 +5,8 @@ export const createExpenseMarketingValidator = [
   body("Date")
     .notEmpty()
     .withMessage("Date is required")
-    .isString()
-    .withMessage("Date must be a string"),
+    .isISO8601()
+    .withMessage("date must be in ISO8601 format (YYYY-MM-DD)"),
 
   body("PartyName")
     .notEmpty()
@@ -51,7 +51,11 @@ export const createExpenseMarketingValidator = [
 
 // ✅ Validator for updating an existing Income Marketing entry
 export const updateExpenseMarketingValidator = [
-  body("Date").optional().isString().withMessage("Date must be a string"),
+  body("Date")
+    .notEmpty()
+    .withMessage("Date is required")
+    .isISO8601()
+    .withMessage("date must be in ISO8601 format (YYYY-MM-DD)"),
 
   body("PartyName")
     .optional()
