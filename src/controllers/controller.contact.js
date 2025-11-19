@@ -1,5 +1,3 @@
-// controllers/contact.controller.js
-
 import Contact from "../models/model.contact.js";
 import Campaign from "../models/model.campaign.js";
 import ContactType from "../models/model.contacttype.js";
@@ -7,21 +5,23 @@ import ContactType from "../models/model.contacttype.js";
 import Admin from "../models/model.admin.js";
 import ApiError from "../utils/ApiError.js";
 
-import mongoose from "mongoose";
-
+// ✅ GET CONTACTS (Role-based + Filters)
 export const getContact = async (req, res, next) => {
   try {
     const admin = req.admin;
     const filter = {};
 
-    // Role based filter
-    if (admin.role === "city_admin") filter.City = admin.city;
-    if (admin.role === "user") filter.AssignTo = admin._id;
+    // 🧩 Role-based filtering
+    if (admin.role === "city_admin") {
+      filter.City = admin.city;
+    } else if (admin.role === "user") {
+      filter.AssignTo = admin._id;
+    }
 
-    // ❌ rename THESE so they don't overwrite Models
+    // 🧠 Query filters
     const {
-      Campaign: CampaignQuery,
-      ContactType: ContactTypeQuery,
+      Campaign,
+      ContactType,
       City,
       Location,
       Keyword,
@@ -31,37 +31,29 @@ export const getContact = async (req, res, next) => {
       sort,
     } = req.query;
 
-    // Filters
-    if (CampaignQuery)
-      filter.Campaign = { $regex: CampaignQuery, $options: "i" };
-
-    if (ContactTypeQuery)
-      filter.ContactType = { $regex: ContactTypeQuery, $options: "i" };
-
-    if (City) filter.City = { $regex: City, $options: "i" };
-    if (Location) filter.Location = { $regex: Location, $options: "i" };
+    if (Campaign) filter.Campaign = { $regex: Campaign.trim(), $options: "i" };
+    if (ContactType)
+      filter.ContactType = { $regex: ContactType.trim(), $options: "i" };
+    if (City) filter.City = { $regex: City.trim(), $options: "i" };
+    if (Location) filter.Location = { $regex: Location.trim(), $options: "i" };
 
     if (Keyword) {
       filter.$or = [
-        { Name: { $regex: Keyword, $options: "i" } },
-        { CompanyName: { $regex: Keyword, $options: "i" } },
-        { Notes: { $regex: Keyword, $options: "i" } },
-        { Email: { $regex: Keyword, $options: "i" } },
+        { Name: { $regex: Keyword.trim(), $options: "i" } },
+        { CompanyName: { $regex: Keyword.trim(), $options: "i" } },
+        { Notes: { $regex: Keyword.trim(), $options: "i" } },
+        { Email: { $regex: Keyword.trim(), $options: "i" } },
       ];
     }
 
     if (StartDate && EndDate) {
-      filter.createdAt = {
-        $gte: new Date(StartDate),
-        $lte: new Date(EndDate),
-      };
+      filter.createdAt = { $gte: new Date(StartDate), $lte: new Date(EndDate) };
     }
 
     // Sorting
-    const sortField = "createdAt";
-    const sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
+    let sortField = "createdAt";
+    let sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
 
-    // Fetch contacts
     let query = Contact.find(filter)
       .populate("AssignTo", "name email role city")
       .sort({ [sortField]: sortOrder });
@@ -69,59 +61,7 @@ export const getContact = async (req, res, next) => {
     if (Limit) query = query.limit(Number(Limit));
 
     const contacts = await query;
-
-    // Extract valid ObjectId strings
-    const campaignIds = [
-      ...new Set(
-        contacts
-          .map((c) => c.Campaign)
-          .filter((x) => mongoose.isValidObjectId(x))
-      ),
-    ];
-
-    const typeIds = [
-      ...new Set(
-        contacts
-          .map((c) => c.ContactType)
-          .filter((x) => mongoose.isValidObjectId(x))
-      ),
-    ];
-
-    // Fetch names
-    const campaigns = await Campaign.find({
-      _id: { $in: campaignIds },
-    });
-
-    const contactTypes = await ContactType.find({
-      _id: { $in: typeIds },
-    });
-
-    // Create maps
-    const campaignMap = {};
-    const typeMap = {};
-
-    campaigns.forEach((c) => {
-      campaignMap[c._id.toString()] = c.Name;
-    });
-
-    contactTypes.forEach((t) => {
-      typeMap[t._id.toString()] = t.Name;
-    });
-
-    // Replace IDs with names
-    const finalData = contacts.map((c) => {
-      const obj = c.toObject();
-      return {
-        ...obj,
-        Campaign: campaignMap[obj.Campaign] || obj.Campaign,
-        ContactType: typeMap[obj.ContactType] || obj.ContactType,
-      };
-    });
-
-    return res.status(200).json({
-      success: true,
-      data: finalData,
-    });
+    res.status(200).json(contacts);
   } catch (error) {
     next(new ApiError(500, error.message));
   }
@@ -231,14 +171,15 @@ export const getContactById = async (req, res, next) => {
   try {
     const admin = req.admin;
 
-    let contact = await Contact.findById(req.params.id).populate(
+    // 🟢 Find the contact and populate the assigned admin
+    const contact = await Contact.findById(req.params.id).populate(
       "AssignTo",
       "name email role city"
     );
 
     if (!contact) return next(new ApiError(404, "Contact not found"));
 
-    // Role validation
+    // 🔐 Role-based access checks
     if (
       admin.role === "user" &&
       contact.AssignTo?._id?.toString() !== admin._id.toString()
@@ -248,26 +189,26 @@ export const getContactById = async (req, res, next) => {
     if (admin.role === "city_admin" && contact.City !== admin.city)
       return next(new ApiError(403, "Access denied"));
 
-    // Fetch campaign & type doc
-    let campaignDoc = null;
-    let contactTypeDoc = null;
+    // 🧩 Look up Campaign and ContactType using their names
+    const campaignDoc = await Campaign.findOne({
+      Name: contact.Campaign,
+    }).select("_id Name");
+    const contactTypeDoc = await ContactType.findOne({
+      Name: contact.ContactType,
+    }).select("_id Name");
 
-    if (mongoose.isValidObjectId(contact.Campaign))
-      campaignDoc = await Campaign.findById(contact.Campaign);
-
-    if (mongoose.isValidObjectId(contact.ContactType))
-      contactTypeDoc = await ContactType.findById(contact.ContactType);
-
-    return res.status(200).json({
+    // 🧠 Prepare structured response
+    const response = {
       ...contact.toObject(),
       Campaign: campaignDoc
         ? { _id: campaignDoc._id, Name: campaignDoc.Name }
-        : { _id: null, Name: contact.Campaign },
-
+        : { _id: null, Name: contact.Campaign || "" },
       ContactType: contactTypeDoc
         ? { _id: contactTypeDoc._id, Name: contactTypeDoc.Name }
-        : { _id: null, Name: contact.ContactType },
-    });
+        : { _id: null, Name: contact.ContactType || "" },
+    };
+
+    res.status(200).json(response);
   } catch (error) {
     next(new ApiError(500, error.message));
   }
@@ -277,39 +218,53 @@ export const getContactById = async (req, res, next) => {
 export const createContact = async (req, res, next) => {
   try {
     const admin = req.admin;
-    let body = req.body;
-
-    // Convert names → IDs before saving
-    let campaignId = null;
-    let contactTypeId = null;
-
-    if (body.Campaign) {
-      const camp = await Campaign.findOne({ Name: body.Campaign.trim() });
-      if (!camp) return next(new ApiError(400, "Invalid Campaign Name"));
-      campaignId = camp._id;
-    }
-
-    if (body.ContactType) {
-      const type = await ContactType.findOne({ Name: body.ContactType.trim() });
-      if (!type) return next(new ApiError(400, "Invalid Contact Type Name"));
-      contactTypeId = type._id;
-    }
+    const {
+      Campaign,
+      Range,
+      ContactNo,
+      Location,
+      ContactType,
+      Name,
+      City,
+      Address,
+      ContactIndustry,
+      ContactFunctionalArea,
+      ReferenceId,
+      Notes,
+      Facilities,
+      date,
+      Email,
+      CompanyName,
+      Website,
+      Status,
+      Qualifications,
+      AssignTo,
+    } = req.body;
 
     const newContact = await Contact.create({
-      ...body,
-      Campaign: campaignId,
-      ContactType: contactTypeId,
-      AssignTo: admin.role === "user" ? admin._id : body.AssignTo || null,
+      Campaign,
+      Range,
+      ContactNo,
+      Location,
+      ContactType,
+      Name,
+      City,
+      Address,
+      ContactIndustry,
+      ContactFunctionalArea,
+      ReferenceId,
+      Notes,
+      Facilities,
+      date,
+      Email: Email || undefined,
+      CompanyName,
+      Website,
+      Status,
+      Qualifications,
+      AssignTo: admin.role === "user" ? admin._id : AssignTo || null,
     });
 
-    return res.status(201).json({
-      success: true,
-      data: {
-        ...newContact.toObject(),
-        Campaign: { _id: campaignId, Name: body.Campaign },
-        ContactType: { _id: contactTypeId, Name: body.ContactType },
-      },
-    });
+    res.status(201).json({ success: true, data: newContact });
   } catch (error) {
     next(new ApiError(400, error.message));
   }
@@ -320,56 +275,32 @@ export const updateContact = async (req, res, next) => {
   try {
     const admin = req.admin;
     const { id } = req.params;
-    let body = req.body;
 
     const existingContact = await Contact.findById(id);
     if (!existingContact) return next(new ApiError(404, "Contact not found"));
 
+    // Role-based restrictions
     if (
       admin.role === "user" &&
       existingContact.AssignTo?.toString() !== admin._id.toString()
     )
-      return next(new ApiError(403, "You can only update your contacts"));
-
+      return next(
+        new ApiError(403, "You can only update your assigned contacts")
+      );
     if (admin.role === "city_admin" && existingContact.City !== admin.city)
       return next(
         new ApiError(403, "You can only update contacts in your city")
       );
 
-    // Convert names → IDs
-    let campaignId = existingContact.Campaign;
-    let contactTypeId = existingContact.ContactType;
+    const updatedContact = await Contact.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    });
 
-    if (body.Campaign) {
-      const camp = await Campaign.findOne({ Name: body.Campaign.trim() });
-      if (!camp) return next(new ApiError(400, "Invalid Campaign Name"));
-      campaignId = camp._id;
-    }
-
-    if (body.ContactType) {
-      const type = await ContactType.findOne({ Name: body.ContactType.trim() });
-      if (!type) return next(new ApiError(400, "Invalid Contact Type Name"));
-      contactTypeId = type._id;
-    }
-
-    const updated = await Contact.findByIdAndUpdate(
-      id,
-      {
-        ...body,
-        Campaign: campaignId,
-        ContactType: contactTypeId,
-      },
-      { new: true, runValidators: true }
-    );
-
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Contact updated successfully",
-      data: {
-        ...updated.toObject(),
-        Campaign: { _id: campaignId, Name: body.Campaign || "" },
-        ContactType: { _id: contactTypeId, Name: body.ContactType || "" },
-      },
+      data: updatedContact,
     });
   } catch (error) {
     next(new ApiError(400, error.message));

@@ -169,11 +169,12 @@ export const importContacts = async (req, res, next) => {
         row.ContactType
       );
 
+      // ⚠️ FIXED: Save NAMES instead of IDs
       finalContacts.push({
         ...row,
         ContactNo: extractNumbers(row.ContactNo),
-        Campaign: campaign?._id || null,
-        ContactType: contactType?._id || null,
+        Campaign: campaign?.Name || "",
+        ContactType: contactType?.Name || "",
         CreatedBy: admin._id,
         City: admin.city || row.City || "",
         isImported: true,
@@ -204,19 +205,12 @@ export const importContacts = async (req, res, next) => {
       existingNumbers.has(c.ContactNo)
     );
 
-    // Insert new Contacts
+    // Insert new Contacts (already storing names)
     const inserted = uniqueContacts.length
       ? await Contact.insertMany(uniqueContacts, { ordered: false })
       : [];
 
-    // ⭐ Populate Campaign + ContactType names
-    const populatedInserted = await Contact.find({
-      _id: { $in: inserted.map((i) => i._id) },
-    })
-      .populate("Campaign", "Name")
-      .populate("ContactType", "Name");
-
-    // Summary Export (with populated)
+    // Summary Export
     const summaryDir = path.join(__dirname, "../uploads/summaries");
     if (!fs.existsSync(summaryDir))
       fs.mkdirSync(summaryDir, { recursive: true });
@@ -228,16 +222,10 @@ export const importContacts = async (req, res, next) => {
 
     const summarySheet = xlsx.utils.book_new();
 
-    if (populatedInserted.length)
+    if (inserted.length)
       xlsx.utils.book_append_sheet(
         summarySheet,
-        xlsx.utils.json_to_sheet(
-          populatedInserted.map((i) => ({
-            ...i.toObject(),
-            Campaign: i.Campaign?.Name || "",
-            ContactType: i.ContactType?.Name || "",
-          }))
-        ),
+        xlsx.utils.json_to_sheet(inserted),
         "Imported_Contacts"
       );
 
@@ -252,18 +240,14 @@ export const importContacts = async (req, res, next) => {
 
     fs.unlink(req.file.path, () => {});
 
-    // ⭐ Final Response with names instead of IDs
+    // ⭐ Final Response (campaign + type already names)
     res.status(200).json({
       success: true,
       message: `${inserted.length} contacts imported successfully. ${duplicateContacts.length} duplicates skipped.`,
       totalRecords: finalContacts.length,
       importedCount: inserted.length,
       skippedCount: duplicateContacts.length,
-      importedContacts: populatedInserted.map((i) => ({
-        ...i.toObject(),
-        Campaign: i.Campaign?.Name || "",
-        ContactType: i.ContactType?.Name || "",
-      })),
+      importedContacts: inserted,
       summaryFile: `/uploads/summaries/${path.basename(summaryFile)}`,
     });
   } catch (error) {
