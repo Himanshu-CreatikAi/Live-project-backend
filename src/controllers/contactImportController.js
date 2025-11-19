@@ -3,13 +3,15 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import Contact from "../models/model.contact.js";
+import Campaign from "../models/model.campaign.js";
+import ContactType from "../models/model.contacttype.js";
 import ApiError from "../utils/ApiError.js";
 
 // For saving summary files
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Default key mapping (auto map fallback)
+// ✅ Default key mapping
 const keyMap = {
   "contact no": "ContactNo",
   contactno: "ContactNo",
@@ -34,46 +36,40 @@ const keyMap = {
   notes: "Notes",
   facilities: "Facilities",
   "reference id": "ReferenceId",
-  range: "Range",
   status: "Status",
 };
 
-// ✅ Clean one number
+// Clean number
 const cleanNumber = (num) => {
   if (!num) return "";
   return String(num)
-    .replace(/[^\d]/g, "") // keep digits only
-    .replace(/^91/, "") // remove India code
-    .replace(/^0+/, "") // remove leading zeroes
+    .replace(/[^\d]/g, "")
+    .replace(/^91/, "")
+    .replace(/^0+/, "")
     .trim();
 };
 
-// ✅ Extract, split, clean & merge multiple phone numbers
+// Extract multiple numbers
 const extractNumbers = (raw) => {
   if (!raw) return "";
 
   const nums = String(raw)
-    .split(/[,/|;:-]/) // split on all separators
+    .split(/[,/|;:-]/)
     .map((n) => cleanNumber(n))
-    .filter((n) => n.length >= 10); // valid numbers only
+    .filter((n) => n.length >= 10);
 
-  const unique = [...new Set(nums)]; // remove duplicates
-
-  return unique.join(","); // return comma-separated list
+  return [...new Set(nums)].join(",");
 };
 
-// Normalize headers
+// Normalize keys
 const normalizeKeys = (row, manualMap = {}) => {
   const normalized = {};
   for (const [key, value] of Object.entries(row)) {
     const lowerKey = key.trim().toLowerCase();
-
     const manualKey = manualMap[lowerKey];
     const normalizedKey = manualKey || keyMap[lowerKey] || key;
 
     let finalValue = value;
-
-    // ⭐ Auto-clean mobile related fields
     if (
       [
         "contactno",
@@ -84,7 +80,7 @@ const normalizeKeys = (row, manualMap = {}) => {
         "phone number",
       ].includes(lowerKey)
     ) {
-      finalValue = extractNumbers(value); // ⭐ extract multiple numbers
+      finalValue = extractNumbers(value);
     }
 
     normalized[normalizedKey] = finalValue;
@@ -92,23 +88,53 @@ const normalizeKeys = (row, manualMap = {}) => {
   return normalized;
 };
 
-// Import Contacts Controller
+// ⭐ AUTO CREATE CAMPAIGN + CONTACT TYPE
+const ensureCampaignAndType = async (campaignName, typeName) => {
+  let campaign = null;
+  let contactType = null;
+
+  if (campaignName) {
+    campaign = await Campaign.findOne({ Name: campaignName.trim() });
+
+    if (!campaign) {
+      campaign = await Campaign.create({
+        Name: campaignName.trim(),
+        Status: "Active",
+      });
+    }
+  }
+
+  if (campaign && typeName) {
+    contactType = await ContactType.findOne({
+      Name: typeName.trim(),
+      Campaign: campaign._id,
+    });
+
+    if (!contactType) {
+      contactType = await ContactType.create({
+        Name: typeName.trim(),
+        Campaign: campaign._id,
+        Status: "Active",
+      });
+    }
+  }
+
+  return { campaign, contactType };
+};
+
+// Import Controller
 export const importContacts = async (req, res, next) => {
   try {
     const admin = req.admin;
     const { fieldMapping } = req.body;
 
-    // 1️⃣ Field mapping is required (same as customer import)
-    if (!fieldMapping) {
+    if (!fieldMapping)
       return next(new ApiError(400, "fieldMapping is required"));
-    }
 
-    // ⭐ Convert fieldMapping keys to lowercase
+    // Parse field mapping
     let manualMap = {};
     try {
       const parsed = JSON.parse(fieldMapping);
-      manualMap = {};
-
       Object.keys(parsed).forEach((key) => {
         manualMap[key.trim().toLowerCase()] = parsed[key];
       });
@@ -116,12 +142,9 @@ export const importContacts = async (req, res, next) => {
       return next(new ApiError(400, "Invalid fieldMapping JSON"));
     }
 
-    // 2️⃣ File required
-    if (!req.file) {
-      return next(new ApiError(400, "No file uploaded"));
-    }
+    if (!req.file) return next(new ApiError(400, "No file uploaded"));
 
-    // 3️⃣ Read Excel file
+    // Read Excel
     const workbook = xlsx.readFile(req.file.path);
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -131,35 +154,39 @@ export const importContacts = async (req, res, next) => {
       return next(new ApiError(400, "Excel file is empty"));
     }
 
-    // 4️⃣ Normalize using manualMap + keyMap
     const normalizedData = sheetData.map((row) =>
       normalizeKeys(row, manualMap)
     );
 
-    // 5️⃣ Build formatted contacts (Campaign, ContactType, Range come from Excel)
-    const formattedContacts = normalizedData
-      .filter((row) => row.ContactNo && row.Name)
-      .map((row) => ({
+    const finalContacts = [];
+
+    for (const row of normalizedData) {
+      if (!row.ContactNo || !row.Name) continue;
+
+      // ⭐ Auto create Campaign + Contact Type
+      const { campaign, contactType } = await ensureCampaignAndType(
+        row.Campaign,
+        row.ContactType
+      );
+
+      finalContacts.push({
         ...row,
         ContactNo: extractNumbers(row.ContactNo),
-
-        // ⭐ From Excel, NOT req.body
-        Campaign: row.Campaign || "",
-        ContactType: row.ContactType || "",
-        Range: row.Range || "", // optional
-
+        Campaign: campaign?._id || null,
+        ContactType: contactType?._id || null,
         CreatedBy: admin._id,
         City: admin.city || row.City || "",
         isImported: true,
-      }));
+      });
+    }
 
-    if (!formattedContacts.length) {
+    if (!finalContacts.length) {
       fs.unlink(req.file.path, () => {});
       return next(new ApiError(400, "No valid contact records found"));
     }
 
-    // 6️⃣ Duplicate check
-    const contactNumbers = formattedContacts
+    // Duplicate check
+    const contactNumbers = finalContacts
       .map((c) => c.ContactNo)
       .filter(Boolean);
 
@@ -169,20 +196,27 @@ export const importContacts = async (req, res, next) => {
 
     const existingNumbers = new Set(existingContacts.map((c) => c.ContactNo));
 
-    const uniqueContacts = formattedContacts.filter(
+    const uniqueContacts = finalContacts.filter(
       (c) => !existingNumbers.has(c.ContactNo)
     );
 
-    const duplicateContacts = formattedContacts.filter((c) =>
+    const duplicateContacts = finalContacts.filter((c) =>
       existingNumbers.has(c.ContactNo)
     );
 
-    // 7️⃣ Insert unique contacts
+    // Insert new Contacts
     const inserted = uniqueContacts.length
       ? await Contact.insertMany(uniqueContacts, { ordered: false })
       : [];
 
-    // 8️⃣ Summary CSV Export
+    // ⭐ Populate Campaign + ContactType names
+    const populatedInserted = await Contact.find({
+      _id: { $in: inserted.map((i) => i._id) },
+    })
+      .populate("Campaign", "Name")
+      .populate("ContactType", "Name");
+
+    // Summary Export (with populated)
     const summaryDir = path.join(__dirname, "../uploads/summaries");
     if (!fs.existsSync(summaryDir))
       fs.mkdirSync(summaryDir, { recursive: true });
@@ -194,10 +228,16 @@ export const importContacts = async (req, res, next) => {
 
     const summarySheet = xlsx.utils.book_new();
 
-    if (inserted.length)
+    if (populatedInserted.length)
       xlsx.utils.book_append_sheet(
         summarySheet,
-        xlsx.utils.json_to_sheet(inserted.map((i) => i.toObject())),
+        xlsx.utils.json_to_sheet(
+          populatedInserted.map((i) => ({
+            ...i.toObject(),
+            Campaign: i.Campaign?.Name || "",
+            ContactType: i.ContactType?.Name || "",
+          }))
+        ),
         "Imported_Contacts"
       );
 
@@ -210,15 +250,20 @@ export const importContacts = async (req, res, next) => {
 
     xlsx.writeFile(summarySheet, summaryFile);
 
-    // 9️⃣ Remove uploaded file
     fs.unlink(req.file.path, () => {});
 
+    // ⭐ Final Response with names instead of IDs
     res.status(200).json({
       success: true,
       message: `${inserted.length} contacts imported successfully. ${duplicateContacts.length} duplicates skipped.`,
-      totalRecords: formattedContacts.length,
+      totalRecords: finalContacts.length,
       importedCount: inserted.length,
       skippedCount: duplicateContacts.length,
+      importedContacts: populatedInserted.map((i) => ({
+        ...i.toObject(),
+        Campaign: i.Campaign?.Name || "",
+        ContactType: i.ContactType?.Name || "",
+      })),
       summaryFile: `/uploads/summaries/${path.basename(summaryFile)}`,
     });
   } catch (error) {

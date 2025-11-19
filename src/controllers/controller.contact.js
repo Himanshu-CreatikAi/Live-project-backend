@@ -7,23 +7,21 @@ import ContactType from "../models/model.contacttype.js";
 import Admin from "../models/model.admin.js";
 import ApiError from "../utils/ApiError.js";
 
-// ✅ GET CONTACTS (Role-based + Filters)
+import mongoose from "mongoose";
+
 export const getContact = async (req, res, next) => {
   try {
     const admin = req.admin;
     const filter = {};
 
-    // 🧩 Role-based filtering
-    if (admin.role === "city_admin") {
-      filter.City = admin.city;
-    } else if (admin.role === "user") {
-      filter.AssignTo = admin._id;
-    }
+    // Role based filter
+    if (admin.role === "city_admin") filter.City = admin.city;
+    if (admin.role === "user") filter.AssignTo = admin._id;
 
-    // 🧠 Query filters
+    // ❌ rename THESE so they don't overwrite Models
     const {
-      Campaign,
-      ContactType,
+      Campaign: CampaignQuery,
+      ContactType: ContactTypeQuery,
       City,
       Location,
       Keyword,
@@ -33,29 +31,37 @@ export const getContact = async (req, res, next) => {
       sort,
     } = req.query;
 
-    if (Campaign) filter.Campaign = { $regex: Campaign.trim(), $options: "i" };
-    if (ContactType)
-      filter.ContactType = { $regex: ContactType.trim(), $options: "i" };
-    if (City) filter.City = { $regex: City.trim(), $options: "i" };
-    if (Location) filter.Location = { $regex: Location.trim(), $options: "i" };
+    // Filters
+    if (CampaignQuery)
+      filter.Campaign = { $regex: CampaignQuery, $options: "i" };
+
+    if (ContactTypeQuery)
+      filter.ContactType = { $regex: ContactTypeQuery, $options: "i" };
+
+    if (City) filter.City = { $regex: City, $options: "i" };
+    if (Location) filter.Location = { $regex: Location, $options: "i" };
 
     if (Keyword) {
       filter.$or = [
-        { Name: { $regex: Keyword.trim(), $options: "i" } },
-        { CompanyName: { $regex: Keyword.trim(), $options: "i" } },
-        { Notes: { $regex: Keyword.trim(), $options: "i" } },
-        { Email: { $regex: Keyword.trim(), $options: "i" } },
+        { Name: { $regex: Keyword, $options: "i" } },
+        { CompanyName: { $regex: Keyword, $options: "i" } },
+        { Notes: { $regex: Keyword, $options: "i" } },
+        { Email: { $regex: Keyword, $options: "i" } },
       ];
     }
 
     if (StartDate && EndDate) {
-      filter.createdAt = { $gte: new Date(StartDate), $lte: new Date(EndDate) };
+      filter.createdAt = {
+        $gte: new Date(StartDate),
+        $lte: new Date(EndDate),
+      };
     }
 
     // Sorting
-    let sortField = "createdAt";
-    let sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
+    const sortField = "createdAt";
+    const sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
 
+    // Fetch contacts
     let query = Contact.find(filter)
       .populate("AssignTo", "name email role city")
       .sort({ [sortField]: sortOrder });
@@ -63,7 +69,59 @@ export const getContact = async (req, res, next) => {
     if (Limit) query = query.limit(Number(Limit));
 
     const contacts = await query;
-    res.status(200).json(contacts);
+
+    // Extract valid ObjectId strings
+    const campaignIds = [
+      ...new Set(
+        contacts
+          .map((c) => c.Campaign)
+          .filter((x) => mongoose.isValidObjectId(x))
+      ),
+    ];
+
+    const typeIds = [
+      ...new Set(
+        contacts
+          .map((c) => c.ContactType)
+          .filter((x) => mongoose.isValidObjectId(x))
+      ),
+    ];
+
+    // Fetch names
+    const campaigns = await Campaign.find({
+      _id: { $in: campaignIds },
+    });
+
+    const contactTypes = await ContactType.find({
+      _id: { $in: typeIds },
+    });
+
+    // Create maps
+    const campaignMap = {};
+    const typeMap = {};
+
+    campaigns.forEach((c) => {
+      campaignMap[c._id.toString()] = c.Name;
+    });
+
+    contactTypes.forEach((t) => {
+      typeMap[t._id.toString()] = t.Name;
+    });
+
+    // Replace IDs with names
+    const finalData = contacts.map((c) => {
+      const obj = c.toObject();
+      return {
+        ...obj,
+        Campaign: campaignMap[obj.Campaign] || obj.Campaign,
+        ContactType: typeMap[obj.ContactType] || obj.ContactType,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: finalData,
+    });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
