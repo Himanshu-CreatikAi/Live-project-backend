@@ -5,38 +5,34 @@ import { fileURLToPath } from "url";
 import Customer from "../models/model.customer.js";
 import ApiError from "../utils/ApiError.js";
 
-// For saving summary files in same folder as uploads
+// Campaign + Type + SubType Auto Creator
+import Campaign from "../models/model.campaign.js";
+import Type from "../models/model.types.js";
+import SubType from "../models/model.subType.js";
+
+// For summary export
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Default normalization map (auto mapping)
+// Default key map
 const keyMap = {
   "customer name": "customerName",
   fullname: "customerName",
-  "full name": "customerName",
   name: "customerName",
   contactnumber: "ContactNumber",
-  contact: "ContactNumber",
   phone: "ContactNumber",
-  "phone no.": "ContactNumber",
   mobile: "ContactNumber",
   "mobile number": "ContactNumber",
   email: "Email",
-  "e-mail": "Email",
-  mail: "Email",
   city: "City",
   location: "Location",
   area: "Area",
   address: "Adderess",
   facilities: "Facillities",
-  facility: "Facillities",
-  referenceid: "ReferenceId",
-  "reference id": "ReferenceId",
   description: "Description",
 };
 
-// ✅ Helper: normalize Excel headers using auto + manual map
-// 📌 Clean number function
+// Number cleaners
 const cleanNumber = (num) => {
   if (!num) return "";
   return String(num)
@@ -44,164 +40,199 @@ const cleanNumber = (num) => {
     .replace(/[^0-9]/g, "");
 };
 
-// 📌 Extract, split & clean multiple phone numbers
 const extractNumbers = (raw) => {
   if (!raw) return "";
-
   const nums = String(raw)
-    .split(/[,/|;-]/) // split by comma, slash, dash, semicolon, pipe
+    .split(/[,/;|-]/)
     .map((n) => cleanNumber(n))
-    .filter((n) => n.length >= 10); // keep only valid numbers
-
-  // remove duplicates
-  const unique = [...new Set(nums)];
-
-  return unique.join(","); // final comma list
+    .filter((n) => n.length >= 10);
+  return [...new Set(nums)].join(",");
 };
 
+// Normalize Excel keys
 const normalizeKeys = (row, manualMap = {}) => {
   const normalized = {};
   for (const [key, value] of Object.entries(row)) {
-    const lowerKey = key.trim().toLowerCase();
+    const lower = key.trim().toLowerCase();
+    const manual = manualMap[lower];
+    const finalKey = manual || keyMap[lower] || key;
 
-    const manualKey = manualMap[lowerKey];
-    const normalizedKey = manualKey || keyMap[lowerKey] || key;
-
-    normalized[normalizedKey] = value;
+    normalized[finalKey] = value;
   }
   return normalized;
 };
 
+// AUTO CREATE: Campaign → Type → SubType
+const ensureCampaignTree = async (campaignName, typeName, subTypeName) => {
+  let campaign = null;
+  let customerType = null;
+  let customerSubType = null;
+
+  if (campaignName) {
+    campaign = await Campaign.findOne({ Name: campaignName.trim() });
+    if (!campaign) {
+      campaign = await Campaign.create({
+        Name: campaignName.trim(),
+        Status: "Active",
+      });
+    }
+  }
+
+  if (campaign && typeName) {
+    customerType = await Type.findOne({
+      Name: typeName.trim(),
+      Campaign: campaign._id,
+    });
+    if (!customerType) {
+      customerType = await Type.create({
+        Name: typeName.trim(),
+        Campaign: campaign._id,
+        Status: "Active",
+      });
+    }
+  }
+
+  if (campaign && customerType && subTypeName) {
+    customerSubType = await SubType.findOne({
+      Name: subTypeName.trim(),
+      Campaign: campaign._id,
+      CustomerType: customerType._id,
+    });
+    if (!customerSubType) {
+      customerSubType = await SubType.create({
+        Name: subTypeName.trim(),
+        Campaign: campaign._id,
+        CustomerType: customerType._id,
+        Status: "Active",
+      });
+    }
+  }
+
+  return {
+    campaignName: campaign?.Name || "",
+    typeName: customerType?.Name || "",
+    subTypeName: customerSubType?.Name || "",
+  };
+};
+
+// Main Import Controller
 export const importCustomers = async (req, res, next) => {
   try {
     const admin = req.admin;
-    const { fieldMapping } = req.body;
 
-    // 1️⃣ Manual field mapping is REQUIRED now
-    if (!fieldMapping) {
+    // fieldMapping required
+    if (!req.body.fieldMapping)
       return next(new ApiError(400, "fieldMapping is required"));
-    }
 
-    // ⭐ Convert fieldMapping keys to lowercase to match Excel normalized keys
     let manualMap = {};
     try {
-      const parsedMap = JSON.parse(fieldMapping);
-
-      manualMap = {};
-      Object.keys(parsedMap).forEach((key) => {
-        manualMap[key.trim().toLowerCase()] = parsedMap[key];
+      const parsed = JSON.parse(req.body.fieldMapping);
+      Object.keys(parsed).forEach((key) => {
+        manualMap[key.toLowerCase()] = parsed[key];
       });
-    } catch (err) {
-      return next(new ApiError(400, "Invalid fieldMapping JSON format"));
+    } catch {
+      return next(new ApiError(400, "Invalid fieldMapping JSON"));
     }
 
-    // 2️⃣ File required
-    if (!req.file) {
-      return next(new ApiError(400, "No file uploaded"));
-    }
+    if (!req.file) return next(new ApiError(400, "No file uploaded"));
 
-    // 3️⃣ Read Excel file
+    // Read Excel
     const workbook = xlsx.readFile(req.file.path);
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    if (!sheetData.length) {
-      return next(new ApiError(400, "Excel file is empty"));
-    }
+    if (!sheetData.length) return next(new ApiError(400, "Empty Excel file"));
 
-    // 4️⃣ Normalize each row by manual map ONLY (auto-map removed)
-    const normalizedData = sheetData.map((row) =>
+    const normalizedRows = sheetData.map((row) =>
       normalizeKeys(row, manualMap)
     );
 
-    // 5️⃣ Extract fields from Excel after mapping
-    const formattedCustomers = normalizedData
-      .map((row) => {
-        const cleanedList = extractNumbers(row.ContactNumber);
+    const finalCustomers = [];
 
-        return {
-          ...row,
-          ContactNumber: cleanedList,
+    for (const row of normalizedRows) {
+      if (!row.customerName || !row.ContactNumber) continue;
 
-          // ⭐ These now come from Excel through manualMap mapping
-          Campaign: row.Campaign || "",
-          CustomerType: row.CustomerType || "",
-          CustomerSubType: row.CustomerSubType || "", // optional
+      // CLEAN PHONE
+      row.ContactNumber = extractNumbers(row.ContactNumber);
 
-          CreatedBy: admin._id,
-          City: admin.city || row.City || "",
-          isImported: true,
-        };
-      })
-      .filter((row) => row.ContactNumber && row.customerName);
+      // AUTO CREATE (Campaign → Type → SubType)
+      const tree = await ensureCampaignTree(
+        row.Campaign,
+        row.CustomerType,
+        row.CustomerSubType
+      );
 
-    if (!formattedCustomers.length) {
-      return next(new ApiError(400, "No valid customer records found"));
+      // SAVE NAMES TO DB (NO IDs)
+      finalCustomers.push({
+        ...row,
+        Campaign: tree.campaignName,
+        CustomerType: tree.typeName,
+        CustomerSubType: tree.subTypeName,
+        CreatedBy: admin._id,
+        City: admin.city || row.City || "",
+        isImported: true,
+      });
     }
 
-    // 6️⃣ Duplicate check
-    const contactNumbers = formattedCustomers.map((c) => c.ContactNumber);
+    if (!finalCustomers.length)
+      return next(new ApiError(400, "No valid customers found"));
+
+    // Duplicate check
+    const nums = finalCustomers.map((c) => c.ContactNumber);
     const existing = await Customer.find({
-      ContactNumber: { $in: contactNumbers },
+      ContactNumber: { $in: nums },
     }).select("ContactNumber");
 
-    const existingNumbers = new Set(existing.map((c) => c.ContactNumber));
+    const existingNums = new Set(existing.map((e) => e.ContactNumber));
 
-    const uniqueCustomers = formattedCustomers.filter(
-      (c) => !existingNumbers.has(c.ContactNumber)
+    const unique = finalCustomers.filter(
+      (c) => !existingNums.has(c.ContactNumber)
+    );
+    const duplicates = finalCustomers.filter((c) =>
+      existingNums.has(c.ContactNumber)
     );
 
-    const duplicateCustomers = formattedCustomers.filter((c) =>
-      existingNumbers.has(c.ContactNumber)
-    );
-
-    // 7️⃣ Insert new customers
-    const inserted = uniqueCustomers.length
-      ? await Customer.insertMany(uniqueCustomers, { ordered: false })
+    const inserted = unique.length
+      ? await Customer.insertMany(unique, { ordered: false })
       : [];
 
-    // 8️⃣ Summary file
+    // Summary file
     const summaryDir = path.join(__dirname, "../uploads/summaries");
     if (!fs.existsSync(summaryDir))
       fs.mkdirSync(summaryDir, { recursive: true });
 
     const summaryFile = path.join(
       summaryDir,
-      `import-summary-${Date.now()}.csv`
+      `customer-summary-${Date.now()}.xlsx`
     );
 
-    const summarySheet = xlsx.utils.book_new();
+    const summaryWB = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(
+      summaryWB,
+      xlsx.utils.json_to_sheet(inserted),
+      "Imported_Customers"
+    );
+    xlsx.utils.book_append_sheet(
+      summaryWB,
+      xlsx.utils.json_to_sheet(duplicates),
+      "Duplicate_Customers"
+    );
 
-    if (inserted.length)
-      xlsx.utils.book_append_sheet(
-        summarySheet,
-        xlsx.utils.json_to_sheet(inserted.map((i) => i.toObject())),
-        "Imported_Customers"
-      );
+    xlsx.writeFile(summaryWB, summaryFile);
 
-    if (duplicateCustomers.length)
-      xlsx.utils.book_append_sheet(
-        summarySheet,
-        xlsx.utils.json_to_sheet(duplicateCustomers),
-        "Duplicate_Customers"
-      );
-
-    xlsx.writeFile(summarySheet, summaryFile);
-
-    // 9️⃣ Cleanup
     fs.unlink(req.file.path, () => {});
 
     res.status(200).json({
       success: true,
-      message: `${inserted.length} customers imported successfully. ${duplicateCustomers.length} duplicates skipped.`,
-      totalRecords: formattedCustomers.length,
-      importedCount: inserted.length,
-      skippedCount: duplicateCustomers.length,
-      summaryFile: `/uploads/summaries/${path.basename(summaryFile)}`,
+      message: `${inserted.length} imported, ${duplicates.length} duplicates.`,
+      totalRecords: finalCustomers.length,
+      imported: inserted.length,
+      skipped: duplicates.length,
+      file: `/uploads/summaries/${path.basename(summaryFile)}`,
     });
-  } catch (error) {
+  } catch (err) {
     if (req.file?.path) fs.unlink(req.file.path, () => {});
-    next(new ApiError(500, error.message));
+    next(new ApiError(500, err.message));
   }
 };
 
