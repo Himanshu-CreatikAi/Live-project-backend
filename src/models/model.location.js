@@ -11,8 +11,9 @@ let locationschema = new mongoose.Schema(
       default: "",
     },
     City: {
-      type: String,
-      default: "",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "City",
+      required: true,
     },
   },
   { timestamps: true }

@@ -12,10 +12,12 @@ export const getLocation = async (req, res, next) => {
     }
 
     if (city) {
-      filter.City = { $regex: city, $options: "i" };
+      filter.City = city; // must be ID
     }
 
-    let query = Location.find(filter).sort({ createdAt: -1 });
+    let query = Location.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("City", "Name Status"); // ⭐ ADD THIS
 
     if (limit) {
       query = query.limit(Number(limit));
@@ -31,10 +33,15 @@ export const getLocation = async (req, res, next) => {
 
 export const getLocationById = async (req, res, next) => {
   try {
-    const location = await Location.findById(req.params.id);
+    const location = await Location.findById(req.params.id).populate(
+      "City",
+      "Name Status"
+    ); // ⭐ ADD THIS
+
     if (!location) {
       return next(new ApiError(404, "Location not found"));
     }
+
     res.status(200).json(location);
   } catch (error) {
     next(new ApiError(500, error.message));
@@ -78,6 +85,28 @@ export const deleteLocation = async (req, res, next) => {
       return next(new ApiError(404, "Location not found"));
     }
     res.status(200).json({ message: "Location deleted successfully" });
+  } catch (error) {
+    next(new ApiError(500, error.message));
+  }
+};
+// Get all locations for a specific City
+export const getLocationByCity = async (req, res, next) => {
+  try {
+    const { cityId } = req.params;
+
+    const locations = await Location.find({ City: cityId })
+      .sort({ createdAt: -1 })
+      .populate("City", "Name State"); // optional populate
+
+    if (!locations || locations.length === 0) {
+      return next(new ApiError(404, "No locations found for this city"));
+    }
+
+    res.status(200).json({
+      success: true,
+      count: locations.length,
+      data: locations,
+    });
   } catch (error) {
     next(new ApiError(500, error.message));
   }
