@@ -3,6 +3,7 @@ import {
   createLocation,
   deleteLocation,
   getLocation,
+  getLocationByCity,
   getLocationById,
   updateLocation,
 } from "../controllers/controller.location.js";
@@ -19,6 +20,7 @@ locationRoutes.use(protectRoute);
 
 locationRoutes.get("/", getLocation);
 locationRoutes.get("/:id", isAdministrator, getLocationById);
+locationRoutes.get("city/:id", getLocationByCity);
 locationRoutes.post(
   "/",
   isAdministrator,
