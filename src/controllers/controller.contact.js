@@ -4,6 +4,8 @@ import ContactType from "../models/model.contacttype.js";
 
 import Admin from "../models/model.admin.js";
 import ApiError from "../utils/ApiError.js";
+import City from "../models/model.city.js";
+import Location from "../models/model.location.js";
 
 // ✅ GET CONTACTS (Role-based + Filters)
 export const getContact = async (req, res, next) => {
@@ -196,6 +198,12 @@ export const getContactById = async (req, res, next) => {
     const contactTypeDoc = await ContactType.findOne({
       Name: contact.ContactType,
     }).select("_id Name");
+    const cityDoc = await City.findOne({
+      Name: contact.City,
+    }).select("_id Name");
+    const locationDoc = await Location.findOne({
+      Name: contact.Location,
+    }).select("_id Name");
 
     // 🧠 Prepare structured response
     const response = {
@@ -206,6 +214,12 @@ export const getContactById = async (req, res, next) => {
       ContactType: contactTypeDoc
         ? { _id: contactTypeDoc._id, Name: contactTypeDoc.Name }
         : { _id: null, Name: contact.ContactType || "" },
+      City: cityDoc
+        ? { _id: cityDoc._id, Name: cityDoc.Name }
+        : { _id: null, Name: contact.City || "" },
+      Location: locationDoc
+        ? { _id: locationDoc._id, Name: locationDoc.Name }
+        : { _id: null, Name: contact.Location || "" },
     };
 
     res.status(200).json(response);

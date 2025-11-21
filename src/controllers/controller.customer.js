@@ -6,6 +6,8 @@ import fs from "fs";
 import Campaign from "../models/model.campaign.js";
 import Type from "../models/model.types.js";
 import SubType from "../models/model.subType.js";
+import City from "../models/model.city.js";
+import Location from "../models/model.location.js";
 
 // ✅ GET CUSTOMERS (Role-based + Filter)
 // export const getCustomer = async (req, res, next) => {
@@ -264,6 +266,12 @@ export const getCustomerById = async (req, res, next) => {
     const customerSubTypeDoc = await SubType.findOne({
       Name: customer.CustomerSubType,
     }).select("_id Name");
+    const cityDoc = await City.findOne({
+      Name: customer.City,
+    }).select("_id Name");
+    const locationDoc = await Location.findOne({
+      Name: customer.Location,
+    }).select("_id Name");
 
     // 🧠 Prepare structured response
     const response = {
@@ -277,6 +285,12 @@ export const getCustomerById = async (req, res, next) => {
       CustomerType: customerTypeDoc
         ? { _id: customerTypeDoc._id, Name: customerTypeDoc.Name }
         : { _id: null, Name: customer.CustomerType || "" },
+      City: cityDoc
+        ? { _id: cityDoc._id, Name: cityDoc.Name }
+        : { _id: null, Name: customer.City || "" },
+      Location: locationDoc
+        ? { _id: locationDoc._id, Name: locationDoc.Name }
+        : { _id: null, Name: customer.Location || "" },
     };
 
     res.status(200).json(response);
