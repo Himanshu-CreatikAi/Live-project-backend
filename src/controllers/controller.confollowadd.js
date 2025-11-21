@@ -43,7 +43,6 @@ export const getConFollowups = async (req, res, next) => {
       keyword = "",
       status,
       campaign,
-      contactType,
       propertyType,
       city,
       location,
@@ -62,13 +61,8 @@ export const getConFollowups = async (req, res, next) => {
     const contactFilters = {};
     if (campaign)
       contactFilters["contact.Campaign"] = { $regex: campaign, $options: "i" };
-    if (contactType)
-      contactFilters["contact.ContactType"] = {
-        $regex: contactType,
-        $options: "i",
-      };
     if (propertyType)
-      contactFilters["contact.ContactIndustry"] = {
+      contactFilters["contact.ContactType"] = {
         $regex: propertyType,
         $options: "i",
       };

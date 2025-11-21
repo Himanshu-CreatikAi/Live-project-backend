@@ -1,5 +1,7 @@
 import cloudinary from "../config/cloudinary.js";
+import City from "../models/model.city.js";
 import CompanyProject from "../models/model.companyproject.js";
+import Location from "../models/model.location.js";
 import ApiError from "../utils/ApiError.js";
 import fs from "fs";
 
@@ -37,7 +39,23 @@ export const getProjectById = async (req, res, next) => {
 
     if (!project) return next(new ApiError(404, "Project not found"));
 
-    res.status(200).json(project);
+    const cityDoc = await City.findOne({
+      Name: project.City,
+    }).select("_id Name");
+    const locationDoc = await Location.findOne({
+      Name: project.Location,
+    }).select("_id Name");
+
+    const response = {
+      ...project.toObject(),
+      City: cityDoc
+        ? { _id: cityDoc._id, Name: cityDoc.Name }
+        : { _id: null, Name: project.City || "" },
+      Location: locationDoc
+        ? { _id: locationDoc._id, Name: locationDoc.Name }
+        : { _id: null, Name: project.Location || "" },
+    };
+    res.status(200).json(response);
   } catch (error) {
     next(new ApiError(500, error.message));
   }

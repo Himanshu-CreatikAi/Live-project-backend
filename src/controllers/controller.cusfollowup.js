@@ -41,7 +41,7 @@ export const getFollowups = async (req, res, next) => {
       keyword = "",
       status,
       campaign,
-      contactType,
+      customerSubType,
       propertyType,
       city,
       location,
@@ -62,14 +62,14 @@ export const getFollowups = async (req, res, next) => {
         $regex: campaign,
         $options: "i",
       };
-    if (contactType)
+    if (propertyType)
       customerFilters["customer.CustomerType"] = {
-        $regex: contactType,
+        $regex: propertyType,
         $options: "i",
       };
-    if (propertyType)
+    if (customerSubType)
       customerFilters["customer.CustomerSubType"] = {
-        $regex: propertyType,
+        $regex: customerSubType,
         $options: "i",
       };
     if (city)
