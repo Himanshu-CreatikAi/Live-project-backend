@@ -6,7 +6,7 @@ const customerSchema = new mongoose.Schema(
     CustomerType: { type: String, default: "" },
     CustomerSubType: { type: String, default: "" },
     customerName: { type: String, required: true },
-    ContactNumber: { type: String, required: true, unique: true },
+    ContactNumber: { type: String, required: true },
     City: { type: String, default: "" },
     Location: { type: String, default: "" },
     Area: { type: String, default: "" },
