@@ -6,7 +6,7 @@ import {
   getConFollowupById,
   updateConFollowup,
   deleteConFollowup,
-  deleteAllConFollowups,
+  deleteConFollowupsByContact,
 } from "../controllers/controller.confollowadd.js";
 
 const confollowaddRoutes = express.Router();
@@ -30,6 +30,6 @@ confollowaddRoutes.put("/:id", updateConFollowup);
 confollowaddRoutes.delete("/:id", deleteConFollowup);
 
 // ✅ Delete all follow-ups
-confollowaddRoutes.delete("/", deleteAllConFollowups);
+confollowaddRoutes.delete("/contact/:contactId", deleteConFollowupsByContact);
 
 export default confollowaddRoutes;

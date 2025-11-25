@@ -4,9 +4,9 @@ import {
   getFollowups,
   getFollowupByCustomer,
   deleteFollowup,
-  deleteAllFollowups,
   getFollowupById,
   updateFollowup,
+  deleteFollowupsByCustomer,
 } from "../controllers/controller.cusfollowup.js";
 
 const followupRoutes = express.Router();
@@ -30,6 +30,6 @@ followupRoutes.put("/:id", updateFollowup);
 followupRoutes.delete("/:id", deleteFollowup);
 
 // Delete all follow-ups
-followupRoutes.delete("/", deleteAllFollowups);
+followupRoutes.delete("/customer/:customerId", deleteFollowupsByCustomer);
 
 export default followupRoutes;

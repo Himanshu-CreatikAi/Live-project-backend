@@ -261,13 +261,23 @@ export const deleteFollowup = async (req, res, next) => {
   }
 };
 
-// ✅ Delete all follow-ups
-export const deleteAllFollowups = async (req, res, next) => {
+export const deleteFollowupsByCustomer = async (req, res, next) => {
   try {
-    await Followup.deleteMany({});
-    res
-      .status(200)
-      .json({ success: true, message: "All follow-ups deleted successfully" });
+    const { customerId } = req.params;
+
+    // Check if customerId is provided
+    if (!customerId) {
+      return next(new ApiError(400, "Customer ID is required"));
+    }
+
+    // Delete all followups linked to this customer
+    const result = await Followup.deleteMany({ customer: customerId });
+
+    res.status(200).json({
+      success: true,
+      message: "All followups for this customer have been deleted",
+      deletedCount: result.deletedCount,
+    });
   } catch (error) {
     next(new ApiError(500, error.message));
   }

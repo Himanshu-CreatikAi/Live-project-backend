@@ -471,12 +471,21 @@ export const deleteConFollowup = async (req, res, next) => {
 };
 
 // ✅ Delete all contact follow-ups
-export const deleteAllConFollowups = async (req, res, next) => {
+export const deleteConFollowupsByContact = async (req, res, next) => {
   try {
-    await ConFollowup.deleteMany({});
+    const { contactId } = req.params;
+
+    if (!contactId) {
+      return next(new ApiError(400, "Contact ID is required"));
+    }
+
+    // Delete all followups linked to this contact
+    const result = await ConFollowup.deleteMany({ contact: contactId });
+
     res.status(200).json({
       success: true,
-      message: "All Contact Follow-ups deleted successfully",
+      message: "All followups for this contact have been deleted successfully",
+      deletedCount: result.deletedCount,
     });
   } catch (error) {
     next(new ApiError(500, error.message));
