@@ -42,6 +42,7 @@ import companyProjectRoutes from "./routes/route.companyproject.js";
 import builderRoutes from "./routes/route.builderslider.js";
 import incomeMarketingRoutes from "./routes/route.incomemarketing.js";
 import ExpenseMarketingRoutes from "./routes/route.expensemarketing.js";
+import constatustypeRoutes from "./routes/route.constatustype.js";
 
 const app = express();
 app.use(cookieParser());
@@ -115,6 +116,7 @@ app.use("/api/mas/ref", referenceRoutes);
 app.use("/api/mas/exp", expenseRoutes);
 app.use("/api/mas/inc", incomeRoutes);
 app.use("/api/mas/statustype", statustypeRoutes);
+app.use("/api/mas/con/statustype", constatustypeRoutes);
 app.use("/api/mas/payments", paymentRoutes);
 app.use("/api/mas/buil", builderRoutes);
 app.use("/api/com/pro", companyProjectRoutes);
