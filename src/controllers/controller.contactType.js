@@ -8,7 +8,7 @@ export const getContactTypeByCampaign = async (req, res, next) => {
 
     const contactTypes = await ContactType.find({ Campaign: campaignId })
       .sort({ createdAt: -1 })
-      .populate("Campaign", "Name Description Status"); // optional: populate some fields
+      .populate("Campaign", "Name  Status");
 
     if (!contactTypes || contactTypes.length === 0) {
       return next(

@@ -15,7 +15,7 @@ let contactCampaignschema = new mongoose.Schema(
 );
 
 const ContactCampaign = mongoose.model(
-  "Contact campaign",
+  "ContactCampaign",
   contactCampaignschema
 );
 

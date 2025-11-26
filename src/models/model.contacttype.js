@@ -4,7 +4,7 @@ let contactTypeschema = new mongoose.Schema(
   {
     Campaign: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Campaign",
+      ref: "ContactCampaign",
       required: true,
     },
     Name: {
