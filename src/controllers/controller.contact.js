@@ -1,5 +1,5 @@
 import Contact from "../models/model.contact.js";
-import Campaign from "../models/model.campaign.js";
+import ContactCampaign from "../models/model.campaign.js";
 import ContactType from "../models/model.contacttype.js";
 
 import Admin from "../models/model.admin.js";
@@ -194,7 +194,7 @@ export const getContactById = async (req, res, next) => {
       return next(new ApiError(403, "Access denied"));
 
     // 🧩 Look up Campaign and ContactType using their names
-    const campaignDoc = await Campaign.findOne({
+    const campaignDoc = await ContactCampaign.findOne({
       Name: contact.Campaign,
     }).select("_id Name");
     const contactTypeDoc = await ContactType.findOne({
