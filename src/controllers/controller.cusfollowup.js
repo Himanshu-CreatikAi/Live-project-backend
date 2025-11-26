@@ -40,13 +40,13 @@ export const getFollowups = async (req, res, next) => {
       page = 1,
       limit = 10,
       keyword = "",
-      status,
-      campaign,
-      customerSubType,
-      propertyType,
-      city,
-      location,
-      user,
+      StatusType,
+      Campaign,
+      CustomerSubType,
+      PropertyType,
+      City,
+      Location,
+      User,
     } = req.query;
 
     const pageNum = Math.max(1, parseInt(page));
@@ -57,25 +57,25 @@ export const getFollowups = async (req, res, next) => {
     // 1️⃣ FOLLOW-UP FILTER
     // -----------------------------------------------------
     const followupFilters = {};
-    if (status) followupFilters.StatusType = status;
+    if (StatusType) followupFilters.StatusType = StatusType;
 
     // -----------------------------------------------------
     // 2️⃣ CUSTOMER FILTERS (Flattened)
     // -----------------------------------------------------
     const customerFilters = {};
-    if (campaign)
-      customerFilters.Campaign = { $regex: campaign, $options: "i" };
-    if (propertyType)
-      customerFilters.CustomerType = { $regex: propertyType, $options: "i" };
-    if (customerSubType)
+    if (Campaign)
+      customerFilters.Campaign = { $regex: Campaign, $options: "i" };
+    if (PropertyType)
+      customerFilters.CustomerType = { $regex: PropertyType, $options: "i" };
+    if (CustomerSubType)
       customerFilters.CustomerSubType = {
-        $regex: customerSubType,
+        $regex: CustomerSubType,
         $options: "i",
       };
-    if (city) customerFilters.City = { $regex: city, $options: "i" };
-    if (location)
-      customerFilters.Location = { $regex: location, $options: "i" };
-    if (user) customerFilters.ReferenceId = { $regex: user, $options: "i" };
+    if (City) customerFilters.City = { $regex: City, $options: "i" };
+    if (Location)
+      customerFilters.Location = { $regex: Location, $options: "i" };
+    if (User) customerFilters.AssignTo = { $regex: User, $options: "i" };
 
     // -----------------------------------------------------
     // 3️⃣ KEYWORD FILTERS

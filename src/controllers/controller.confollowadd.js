@@ -42,12 +42,12 @@ export const getConFollowups = async (req, res, next) => {
       page = 1,
       limit = 10,
       keyword = "",
-      status,
-      campaign,
-      propertyType,
-      city,
-      location,
-      user,
+      StatusType,
+      Campaign,
+      PropertyType,
+      City,
+      Location,
+      User,
     } = req.query;
 
     const pageNum = Math.max(1, parseInt(page));
@@ -58,18 +58,18 @@ export const getConFollowups = async (req, res, next) => {
     // 1️⃣ FOLLOW-UP FILTERS
     // -----------------------------------------------------
     const followupFilters = {};
-    if (status) followupFilters.StatusType = status;
+    if (StatusType) followupFilters.StatusType = StatusType;
 
     // -----------------------------------------------------
     // 2️⃣ CONTACT FILTERS
     // -----------------------------------------------------
     const contactFilters = {};
-    if (campaign) contactFilters.Campaign = { $regex: campaign, $options: "i" };
-    if (propertyType)
-      contactFilters.ContactType = { $regex: propertyType, $options: "i" };
-    if (city) contactFilters.City = { $regex: city, $options: "i" };
-    if (location) contactFilters.Location = { $regex: location, $options: "i" };
-    if (user) contactFilters.User = { $regex: user, $options: "i" };
+    if (Campaign) contactFilters.Campaign = { $regex: Campaign, $options: "i" };
+    if (PropertyType)
+      contactFilters.ContactType = { $regex: PropertyType, $options: "i" };
+    if (City) contactFilters.City = { $regex: City, $options: "i" };
+    if (Location) contactFilters.Location = { $regex: Location, $options: "i" };
+    if (User) contactFilters.User = { $regex: User, $options: "i" };
 
     // -----------------------------------------------------
     // 3️⃣ KEYWORD FILTERS
