@@ -8,6 +8,69 @@ import City from "../models/model.city.js";
 import Location from "../models/model.location.js";
 
 // ✅ GET CONTACTS (Role-based + Filters)
+// export const getContact = async (req, res, next) => {
+//   try {
+//     const admin = req.admin;
+//     const filter = {};
+
+//     // 🧩 Role-based filtering
+//     if (admin.role === "city_admin") {
+//       filter.City = admin.city;
+//     } else if (admin.role === "user") {
+//       filter.AssignTo = admin._id;
+//     }
+
+//     // 🧠 Query filters
+//     const {
+//       Campaign: qCampaign,
+//       ContactType: qContactType,
+//       City: qCity,
+//       Location: qLocation,
+//       Keyword,
+//       StartDate,
+//       EndDate,
+//       Limit,
+//       sort,
+//     } = req.query;
+
+//     if (qCampaign)
+//       filter.Campaign = { $regex: qCampaign.trim(), $options: "i" };
+//     if (qContactType)
+//       filter.ContactType = { $regex: qContactType.trim(), $options: "i" };
+//     if (qCity) filter.City = { $regex: qCity.trim(), $options: "i" };
+//     if (qLocation)
+//       filter.Location = { $regex: qLocation.trim(), $options: "i" };
+
+//     if (Keyword) {
+//       filter.$or = [
+//         { Name: { $regex: Keyword.trim(), $options: "i" } },
+//         { CompanyName: { $regex: Keyword.trim(), $options: "i" } },
+//         { Notes: { $regex: Keyword.trim(), $options: "i" } },
+//         { Email: { $regex: Keyword.trim(), $options: "i" } },
+//       ];
+//     }
+
+//     if (StartDate && EndDate) {
+//       filter.createdAt = { $gte: new Date(StartDate), $lte: new Date(EndDate) };
+//     }
+
+//     // Sorting
+//     let sortField = "createdAt";
+//     let sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
+
+//     let query = Contact.find(filter)
+//       .populate("AssignTo", "name email role city")
+//       .sort({ [sortField]: sortOrder });
+
+//     if (Limit) query = query.limit(Number(Limit));
+
+//     const contacts = await query;
+//     res.status(200).json(contacts);
+//   } catch (error) {
+//     next(new ApiError(500, error.message));
+//   }
+// };
+
 export const getContact = async (req, res, next) => {
   try {
     const admin = req.admin;
@@ -31,16 +94,22 @@ export const getContact = async (req, res, next) => {
       EndDate,
       Limit,
       sort,
+      User, // 🔥 NEW user filter (same as getCustomer)
     } = req.query;
 
+    // Basic text filters
     if (qCampaign)
       filter.Campaign = { $regex: qCampaign.trim(), $options: "i" };
+
     if (qContactType)
       filter.ContactType = { $regex: qContactType.trim(), $options: "i" };
+
     if (qCity) filter.City = { $regex: qCity.trim(), $options: "i" };
+
     if (qLocation)
       filter.Location = { $regex: qLocation.trim(), $options: "i" };
 
+    // Keyword search
     if (Keyword) {
       filter.$or = [
         { Name: { $regex: Keyword.trim(), $options: "i" } },
@@ -50,21 +119,51 @@ export const getContact = async (req, res, next) => {
       ];
     }
 
+    // Date filter
     if (StartDate && EndDate) {
-      filter.createdAt = { $gte: new Date(StartDate), $lte: new Date(EndDate) };
+      filter.createdAt = {
+        $gte: new Date(StartDate),
+        $lte: new Date(EndDate),
+      };
     }
 
     // Sorting
     let sortField = "createdAt";
     let sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
 
+    // --------------------------------
+    // 🔥 SAME USER FILTER AS CUSTOMER
+    // --------------------------------
+    let populateMatch = {};
+
+    if (User) {
+      populateMatch = {
+        $or: [
+          { name: { $regex: User.trim(), $options: "i" } },
+          { email: { $regex: User.trim(), $options: "i" } },
+          { role: { $regex: User.trim(), $options: "i" } },
+          { city: { $regex: User.trim(), $options: "i" } },
+        ],
+      };
+    }
+
+    // Query with populate match filter
     let query = Contact.find(filter)
-      .populate("AssignTo", "name email role city")
+      .populate({
+        path: "AssignTo",
+        select: "name email role city",
+        match: populateMatch,
+      })
       .sort({ [sortField]: sortOrder });
 
+    // Limit
     if (Limit) query = query.limit(Number(Limit));
 
-    const contacts = await query;
+    let contacts = await query;
+
+    // ❗ Remove contacts whose assigned user didn’t match in populate
+    contacts = contacts.filter((c) => c.AssignTo !== null);
+
     res.status(200).json(contacts);
   } catch (error) {
     next(new ApiError(500, error.message));
