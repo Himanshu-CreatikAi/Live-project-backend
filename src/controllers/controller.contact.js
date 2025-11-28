@@ -76,46 +76,39 @@ export const getContact = async (req, res, next) => {
     const admin = req.admin;
     const filter = {};
 
-    // 🧩 Role-based filtering
-    if (admin.role === "city_admin") {
-      filter.City = admin.city;
-    } else if (admin.role === "user") {
-      filter.AssignTo = admin._id;
-    }
+    // Role-based filtering
+    if (admin.role === "city_admin") filter.City = admin.city;
+    else if (admin.role === "user") filter.AssignTo = admin._id;
 
-    // 🧠 Query filters
     const {
-      Campaign: qCampaign,
-      ContactType: qContactType,
-      City: qCity,
-      Location: qLocation,
+      Campaign,
+      ContactType,
+      City,
+      Location,
       Keyword,
       StartDate,
       EndDate,
       Limit,
       sort,
-      User, // 🔥 NEW user filter (same as getCustomer)
+      User,
     } = req.query;
 
-    // Basic text filters
-    if (qCampaign)
-      filter.Campaign = { $regex: qCampaign.trim(), $options: "i" };
+    // Helper for regex building
+    const makeRegex = (val) => ({ $regex: val.trim(), $options: "i" });
 
-    if (qContactType)
-      filter.ContactType = { $regex: qContactType.trim(), $options: "i" };
-
-    if (qCity) filter.City = { $regex: qCity.trim(), $options: "i" };
-
-    if (qLocation)
-      filter.Location = { $regex: qLocation.trim(), $options: "i" };
+    // Apply filters
+    if (Campaign) filter.Campaign = makeRegex(Campaign);
+    if (ContactType) filter.ContactType = makeRegex(ContactType);
+    if (City) filter.City = makeRegex(City);
+    if (Location) filter.Location = makeRegex(Location);
 
     // Keyword search
     if (Keyword) {
       filter.$or = [
-        { Name: { $regex: Keyword.trim(), $options: "i" } },
-        { CompanyName: { $regex: Keyword.trim(), $options: "i" } },
-        { Notes: { $regex: Keyword.trim(), $options: "i" } },
-        { Email: { $regex: Keyword.trim(), $options: "i" } },
+        { Name: makeRegex(Keyword) },
+        { CompanyName: makeRegex(Keyword) },
+        { Notes: makeRegex(Keyword) },
+        { Email: makeRegex(Keyword) },
       ];
     }
 
@@ -127,42 +120,40 @@ export const getContact = async (req, res, next) => {
       };
     }
 
-    // Sorting
-    let sortField = "createdAt";
-    let sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
+    // Sort setup
+    const sortOrder = sort?.toLowerCase() === "asc" ? 1 : -1;
 
-    // --------------------------------
-    // 🔥 SAME USER FILTER AS CUSTOMER
-    // --------------------------------
+    // User filter inside populate
     let populateMatch = {};
 
     if (User) {
       populateMatch = {
         $or: [
-          { name: { $regex: User.trim(), $options: "i" } },
-          { email: { $regex: User.trim(), $options: "i" } },
-          { role: { $regex: User.trim(), $options: "i" } },
-          { city: { $regex: User.trim(), $options: "i" } },
+          { name: makeRegex(User) },
+          { email: makeRegex(User) },
+          { role: makeRegex(User) },
+          { city: makeRegex(User) },
         ],
       };
     }
 
-    // Query with populate match filter
+    // Main query
     let query = Contact.find(filter)
       .populate({
         path: "AssignTo",
         select: "name email role city",
         match: populateMatch,
       })
-      .sort({ [sortField]: sortOrder });
+      .sort({ createdAt: sortOrder });
 
-    // Limit
     if (Limit) query = query.limit(Number(Limit));
 
     let contacts = await query;
 
-    // ❗ Remove contacts whose assigned user didn’t match in populate
-    contacts = contacts.filter((c) => c.AssignTo !== null);
+    // Apply AssignTo !== null ONLY when User filter is applied
+    if (User) {
+      contacts = contacts.filter((c) => c.AssignTo !== null);
+    }
 
     res.status(200).json(contacts);
   } catch (error) {
