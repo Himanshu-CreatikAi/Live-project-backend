@@ -173,9 +173,6 @@ export const getCustomer = async (req, res, next) => {
 
     let customers = await query;
 
-    // Remove customers whose assigned user didn’t match in populate
-    customers = customers.filter((c) => c.AssignTo !== null);
-
     res.status(200).json(customers);
   } catch (error) {
     next(new ApiError(500, error.message));
